@@ -65,11 +65,46 @@ def apply_colors(mesh, colors_path):
     mesh.color_attributes.render_color_index = 0
 
 
+def _clear_scene():
+    """起動時のシーン (既定の Cube / Camera / Light など) を空にする。
+
+    read_homefile で読み直すと、ウィンドウありの起動ではその後の演算子のコンテキストが失われるので、データを直接消す。
+    """
+    for o in list(bpy.data.objects):
+        bpy.data.objects.remove(o, do_unlink=True)
+    for coll in (bpy.data.meshes, bpy.data.cameras, bpy.data.lights, bpy.data.materials):
+        for block in list(coll):
+            if block.users == 0:
+                coll.remove(block)
+
+
+def _window_context():
+    """ウィンドウありの起動で演算子を呼ぶためのコンテキスト (3D ビューのある最初のウィンドウ)。バックグラウンドでは空。"""
+    wm = bpy.context.window_manager
+    if bpy.app.background or wm is None or not wm.windows:
+        return {}
+    win = wm.windows[0]
+    areas = list(win.screen.areas)
+    area = next((a for a in areas if a.type == "VIEW_3D"), areas[0] if areas else None)
+    ctx = {"window": win, "screen": win.screen}
+    if area is not None:
+        ctx["area"] = area
+        region = next((r for r in area.regions if r.type == "WINDOW"), None)
+        if region is not None:
+            ctx["region"] = region
+    return ctx
+
+
 def receive(manifest_path):
+    with bpy.context.temp_override(**_window_context()):
+        _receive(manifest_path)
+
+
+def _receive(manifest_path):
     m = _load(manifest_path)
     mesh_file = m.get("meshFile") or m["objFile"]
     fmt = (m.get("format") or "obj").lower()
-    bpy.ops.wm.read_homefile(use_empty=True)
+    _clear_scene()
     if fmt == "fbx":
         # Unity FBX Exporter は cm 単位で書くので、読み込むとスケール 0.01 のオブジェクトになる。
         # 編集しやすいように回転・スケールを頂点に焼き込んで、Transform を素の状態にする
@@ -253,21 +288,54 @@ def register():
         bpy.app.handlers.save_post.append(_on_save)
 
 
+def _start(args):
+    manifest_path = args[0]
+    try:
+        if "--resume" in args:
+            # 既存の .blend を開いた状態で起動している。manifest だけ結び付け直す
+            bpy.context.scene[PROP] = manifest_path
+        else:
+            receive(manifest_path)
+    finally:
+        register()
+    if "--autosend" in args:
+        send()
+        bpy.ops.wm.quit_blender()
+
+
 def main():
     args = _script_args()
     if not args:
         register()
         return
-    manifest_path = args[0]
-    if "--resume" in args:
-        # 既存の .blend を開いた状態で起動している。manifest だけ結び付け直す
-        bpy.context.scene[PROP] = manifest_path
-    else:
-        receive(manifest_path)
-    register()
-    if "--autosend" in args:
-        send()
-        bpy.ops.wm.quit_blender()
+    if bpy.app.background:
+        _start(args)
+        return
+
+    # ウィンドウありの起動では、--python の時点ではまだ UI ができていない (演算子が context is incorrect で失敗する)。
+    # ウィンドウができてから読み込む
+    def deferred():
+        wm = bpy.context.window_manager
+        if wm is None or not wm.windows:
+            return 0.1  # まだ。0.1 秒後にもう一度
+        try:
+            _start(args)
+        except Exception as ex:  # noqa: BLE001 - 失敗は Blender のコンソールと画面に出す
+            import traceback
+            traceback.print_exc()
+            _report_error(str(ex))
+        return None
+
+    bpy.app.timers.register(deferred, first_interval=0.1)
+
+
+def _report_error(message):
+    def draw(self, _context):
+        self.layout.label(text=message)
+    try:
+        bpy.context.window_manager.popup_menu(draw, title="VFX Mesh bridge: import failed", icon="ERROR")
+    except Exception:  # noqa: BLE001 - ポップアップが出せなくてもコンソールには出ている
+        pass
 
 
 main()

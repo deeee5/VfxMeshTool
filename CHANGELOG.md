@@ -14,6 +14,12 @@ All notable changes to this package are documented here. The format follows [Kee
 - UI screenshots in the README, with a numbered layout image matched to a table of window areas.
 - Japanese documentation moved to README.ja.md; README.md is now in English.
 
+### Fixed
+- Edit in Blender did not import the mesh when Blender opened with a window (the import ran before Blender's UI was ready).
+
+### Removed
+- The "Tex 未設定" notice in the 3D view.
+
 ## [0.3.0] - 2026-10-22
 
 First public release.

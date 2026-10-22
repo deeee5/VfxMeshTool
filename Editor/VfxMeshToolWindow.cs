@@ -2217,11 +2217,6 @@ namespace VfxMeshTool.EditorUI
             _view3D.End(rect);
 
             float y = DrawMeshStats(rect);
-            if (tex == null && (previewMode == PreviewMode.Textured || previewMode == PreviewMode.TexturedAdditive))
-            {
-                GUI.Label(new Rect(rect.x + 6f, y, rect.width - 12f, 18f),
-                    "Tex 未設定: 白 × 頂点カラーで表示中", EditorStyles.whiteMiniLabel);
-            }
             if (previewMode == PreviewMode.UserMaterial && userMaterial == null)
             {
                 GUI.Label(new Rect(rect.x + 6f, y, rect.width - 12f, 18f),

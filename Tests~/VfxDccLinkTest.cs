@@ -45,6 +45,14 @@ public static class VfxDccLinkTest
                     VfxDccLink.CustomPath = VfxDccLink.ResolveBlender();
                     Expect(VfxDccLink.UsesBlenderAdapter, "Blender picked under Custom is not recognised as Blender");
                     RoundTrip("custom-blender");
+
+                    // with a window (as when a user presses Edit in Blender): the import must wait for the UI.
+                    // Opens a Blender window for a few seconds.
+                    VfxDccLink.Kind = VfxDccKind.Blender;
+                    VfxDccLink.BlenderFormat = VfxExportFormat.Obj;
+                    RoundTrip("obj-window", "--factory-startup");
+                    VfxDccLink.BlenderFormat = VfxExportFormat.Fbx;
+                    RoundTrip("fbx-window", "--factory-startup");
                 }
                 finally
                 {
@@ -75,7 +83,7 @@ public static class VfxDccLinkTest
         return s;
     }
 
-    private static void RoundTrip(string label)
+    private static void RoundTrip(string label, string blenderOptions = "-b --factory-startup")
     {
         string name = "dcc_roundtrip_" + label.Replace("-", "_");
         Log.AppendLine("== " + label + " (send format " + VfxDccLink.SendFormat + ")");
@@ -87,7 +95,7 @@ public static class VfxDccLinkTest
         target.AddComponent<MeshRenderer>();
 
         VfxMeshSettings s = Settings();
-        Process p = VfxDccLink.Open(s, name, target, false, true, "--autosend", "-b --factory-startup");
+        Process p = VfxDccLink.Open(s, name, target, false, true, "--autosend", blenderOptions);
         if (!WaitFor(p, label + " send")) return;
         Expect(VfxDccLink.HasBlenderSession(name), ".blend was not saved for resuming");
 
@@ -98,7 +106,7 @@ public static class VfxDccLinkTest
         // resume: reopen the saved .blend and send again without regenerating
         File.Delete(Path.GetFullPath(returnPath));
         AssetDatabase.Refresh();
-        Process p2 = VfxDccLink.Open(s, name, target, true, true, "--autosend", "-b --factory-startup");
+        Process p2 = VfxDccLink.Open(s, name, target, true, true, "--autosend", blenderOptions);
         if (!WaitFor(p2, label + " resume")) return;
         Mesh again = Receive(returnPath, target);
         if (again != null)

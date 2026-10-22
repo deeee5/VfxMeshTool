@@ -108,6 +108,7 @@ Every shape is a parametric surface over (u, v) ∈ [0,1]². U runs around / acr
 | Cross | Plane count, Width, Height, Alternate Flip U | Crossed planes (pillars of fire instead of billboards) |
 | Revolve | Profile points (radius, height), Smooth, Top Cap Curvature, Arc, Twist | Any lathe shape (bell, drop, vase) |
 | Path | Path Source (Points / Curve / Coil), section (Ribbon / Tube / Cross / Profile), Scale / Scale Y / Twist Profile, Up Mode | Spline sweeps (trails, spirals, crossed ribbons) |
+| Imported | Source Mesh, Keep Original Colors | An existing mesh (.asset, a mesh inside an FBX, ...) used as is, with only UV, vertex colour, transform and normals applied |
 
 ### Revolve and Path notes
 
@@ -205,12 +206,16 @@ The UV section is applied top to bottom: Projection → UV Distribution → Real
 
 | Button / item | Contents |
 | --- | --- |
+| Import Mesh | Loads an existing mesh. A mesh saved by this tool brings back the settings it was made with; any other mesh becomes the Imported shape and looks exactly like the original right after loading (original UVs and vertex colours). A writable .asset is also set as Output Mesh Asset |
+| Output Mesh Asset | The mesh asset written to (target of Overwrite Output and Auto Write) |
 | Save As New Asset... | Saves an `.asset` and sets it as Output Mesh Asset |
 | Overwrite Output | Replaces the contents of Output Mesh Asset (scene objects using it update) |
 | Auto Write Output | Writes to Output on every change. Not right after assigning the mesh, turning it on or opening the window |
 | Export OBJ... / Export FBX... | OBJ / FBX export, also outside the project |
 | Create GameObject in Scene | Creates a GameObject with MeshFilter + MeshRenderer (assigns Mat if set) |
 
+- An .asset saved by this tool carries the settings it was made with as a hidden sub-asset (used by Import Mesh).
+- When an Imported mesh is written back into its own asset, the first write keeps a copy of the original shape inside the asset and later builds start from it, so rotations and the like do not stack.
 - OBJ and FBX are converted to right-handed coordinates, so they import into Blender with the right orientation and size.
 - OBJ welds vertices with the same position and colour within a surface (cylinder seams, cone tips) and keeps the UV seams. Vertex colours use `v x y z r g b` (checked with Blender 4.1 / 5.2).
 - FBX is written with the Unity FBX Exporter in centimetres, so in Blender the object scale is 0.01 (the size is correct; apply it with `Ctrl+A > Scale` before editing).
@@ -271,6 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV projections, Unfold, Circle to Square, UV Distribution, Real Size |
 | VfxExportTest | OBJ / FBX export (`<project>/exports/`) |
 | VfxResetTest | Section resets, display Default, Align to Origin |
+| VfxImportTest | Import Mesh (settings restore, Imported shape, mesh inside an FBX, writing back into the source asset) |
 | VfxDccLinkTest | Unity → Blender → Unity round trip (needs Blender) |
 | VfxTopCapTest | Revolve Top Cap Curvature |
 

@@ -16,6 +16,8 @@ namespace VfxMeshTool
         public readonly List<Vector2> uv = new List<Vector2>();
         public readonly List<Color> colors = new List<Color>();
         public readonly List<int> triangles = new List<int>();
+        /// <summary>Imported 形状のときの元の頂点カラー (それ以外は空)。</summary>
+        public readonly List<Color> importedColors = new List<Color>();
 
         /// <summary>
         /// 追加したグリッドの並び。x = 開始頂点, y = 列数 (U), z = 行数 (V)。
@@ -103,6 +105,10 @@ namespace VfxMeshTool
                 param.Add(param[i]);
                 uv.Add(uv[i]);
                 colors.Add(colors[i]);
+                if (importedColors.Count == n)
+                {
+                    importedColors.Add(importedColors[i]);
+                }
             }
             for (int t = 0; t + 2 < tn; t += 3)
             {

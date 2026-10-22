@@ -67,6 +67,7 @@ public static class VfxMeshToolBatchTest
     {
         foreach (VfxShapeType shape in Enum.GetValues(typeof(VfxShapeType)))
         {
+            if (shape == VfxShapeType.Imported) continue; // needs a source mesh; covered by VfxImportTest
             VfxMeshSettings s = Base(shape);
             CheckMesh(shape.ToString(), VfxMeshBuilder.Build(s), s, true);
 

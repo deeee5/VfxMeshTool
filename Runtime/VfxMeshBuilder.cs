@@ -43,6 +43,7 @@ namespace VfxMeshTool
                 case VfxShapeType.Cross: BuildCross(d, s, segU, segV); break;
                 case VfxShapeType.Revolve: BuildRevolve(d, s, segU, segV); break;
                 case VfxShapeType.Path: BuildPath(d, s, segU, segV); break;
+                case VfxShapeType.Imported: BuildImported(d, s); break;
                 default: BuildPlane(d, s, segU, segV); break;
             }
 
@@ -228,6 +229,61 @@ namespace VfxMeshTool
                         p.x = 1f - p.x;
                         d.param[k] = p;
                     }
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------ imported
+
+        /// <summary>
+        /// 既存のメッシュをそのまま取り込む。全サブメッシュを 1 つにまとめる。
+        /// param には元の UV0 を入れるので、Projection = Parametric なら元の UV のまま、頂点カラーの U / V ソースも元の UV を参照する。
+        /// UV0 が無いメッシュは XZ 平面への投影を param にする。元の頂点カラーは ImportedColors に退避し、
+        /// importedKeepColors なら ApplyUvAndColors がそれを使う。
+        /// グリッドの並びは無いので、角度の継ぎ目つなぎ (Cylindrical など) と OBJ の四角形化は効かない。
+        /// </summary>
+        private static void BuildImported(VfxMeshData d, VfxMeshSettings s)
+        {
+            Mesh m = s.importedMesh;
+            if (m == null)
+            {
+                return;
+            }
+
+            var verts = new List<Vector3>();
+            var norms = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var cols = new List<Color>();
+            m.GetVertices(verts);
+            m.GetNormals(norms);
+            m.GetUVs(0, uvs);
+            m.GetColors(cols);
+            bool hasNormals = norms.Count == verts.Count;
+            bool hasUv = uvs.Count == verts.Count;
+            bool hasColors = cols.Count == verts.Count;
+
+            Bounds b = m.bounds;
+            for (int i = 0; i < verts.Count; i++)
+            {
+                Vector3 p = verts[i];
+                Vector2 prm = hasUv
+                    ? uvs[i]
+                    : new Vector2(Normalize(p.x, b.min.x, b.size.x), Normalize(p.z, b.min.z, b.size.z));
+                d.Add(p, hasNormals ? norms[i] : Vector3.up, prm);
+                d.importedColors.Add(hasColors ? cols[i] : Color.white);
+            }
+
+            var tris = new List<int>();
+            for (int sub = 0; sub < m.subMeshCount; sub++)
+            {
+                if (m.GetTopology(sub) != MeshTopology.Triangles)
+                {
+                    continue;
+                }
+                m.GetTriangles(tris, sub);
+                for (int t = 0; t + 2 < tris.Count; t += 3)
+                {
+                    d.AddTriangle(tris[t], tris[t + 1], tris[t + 2]);
                 }
             }
         }
@@ -1529,9 +1585,17 @@ namespace VfxMeshTool
             VfxVertexColorSettings vc = s.vertexColor ?? new VfxVertexColorSettings();
             VfxUvSettings uvs = s.uv ?? new VfxUvSettings();
             Vector2 extent = UvExtent(d, uvs);
+            // Imported で元の色を使うときは、頂点カラーの設定では塗らない
+            bool keepColors = s.shape == VfxShapeType.Imported && s.importedKeepColors && d.importedColors.Count == d.VertexCount;
 
             for (int i = 0; i < d.VertexCount; i++)
             {
+                if (keepColors)
+                {
+                    d.colors[i] = d.importedColors[i];
+                    d.uv[i] = uvs.Transform(Vector2.Scale(uvs.Distribute(d.param[i]), extent), extent);
+                    continue;
+                }
                 // 頂点カラーは UV 分布・実寸に関係なく 0..1 の param で評価する (フェードのカーブが崩れないように)
                 Vector2 prm = d.param[i];
                 d.uv[i] = uvs.Transform(Vector2.Scale(uvs.Distribute(prm), extent), extent);

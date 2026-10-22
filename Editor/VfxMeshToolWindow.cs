@@ -61,6 +61,9 @@ namespace VfxMeshTool.EditorUI
         [SerializeField] private string lastExportDir;
         // DCC から戻ってきたメッシュで差し替えるシーンのオブジェクト
         [SerializeField] private GameObject dccTarget;
+        // Export の Import Mesh 欄に最後に読み込んだメッシュと、それが設定の復元だったか
+        [SerializeField] private Mesh importSlot;
+        [SerializeField] private bool importRestored;
 
         // ---- プレビュー設定 ----
         [SerializeField] private Material userMaterial;
@@ -453,6 +456,7 @@ namespace VfxMeshTool.EditorUI
             VfxMeshSettings keep = s.Clone();
             JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(d), s);
             s.shape = keep.shape;
+            s.importedMesh = keep.importedMesh;
             s.distributionU = keep.distributionU;
             s.distributionV = keep.distributionV;
             s.alignX = keep.alignX;
@@ -761,11 +765,21 @@ namespace VfxMeshTool.EditorUI
                         DrawTwistCurvePresets("pathTwistProfile");
                         Field("pathUpMode", "Up Mode");
                         break;
+                    case VfxShapeType.Imported:
+                        Field("importedMesh", "Source Mesh", "形として使う既存のメッシュ。Export の Import Mesh から読み込むとここに入る");
+                        Field("importedKeepColors", "Keep Original Colors", "元の頂点カラーをそのまま使う。OFF にすると Vertex Color セクションで塗り直す");
+                        Mesh src = settings.importedMesh;
+                        EditorGUILayout.HelpBox(src != null
+                            ? string.Format("{0}: {1:N0} 頂点。形はそのまま使い、Transform・UV・頂点カラー・法線の設定をかける。Projection = Parametric なら元の UV のまま", src.name, src.vertexCount)
+                            : "Source Mesh が空。Export の Import Mesh か上の欄にメッシュを入れる", MessageType.None);
+                        break;
                 }
 
                 GUILayout.Space(4f);
                 switch (shape)
                 {
+                    case VfxShapeType.Imported:
+                        break;
                     case VfxShapeType.Path:
                         Field("segmentsU", "Segments U", "断面方向 (幅 / 周囲) の分割数");
                         Field("segmentsV", "Segments V", "パスに沿った分割数");
@@ -1341,6 +1355,25 @@ namespace VfxMeshTool.EditorUI
             if (foldExport)
             {
                 EditorGUI.indentLevel++;
+                var picked = (Mesh)EditorGUILayout.ObjectField(new GUIContent("Import Mesh",
+                    "既存のメッシュを読み込んで編集する。このツールで保存したメッシュなら作ったときの設定が戻る。" +
+                    "それ以外 (FBX 内のメッシュなど) は形をそのまま使う Imported 形状になり、UV・頂点カラー・Transform・法線をかけられる"),
+                    importSlot, typeof(Mesh), false);
+                if (picked != importSlot)
+                {
+                    if (picked != null)
+                    {
+                        ImportMesh(picked);
+                    }
+                    else
+                    {
+                        importSlot = null;
+                    }
+                }
+                if (importSlot != null)
+                {
+                    EditorGUILayout.LabelField(" ", importRestored ? "作ったときの設定を復元" : "Imported 形状として読み込み", EditorStyles.miniLabel);
+                }
                 EditorGUILayout.PropertyField(P("meshName"), new GUIContent("Mesh Name"));
                 EditorGUILayout.PropertyField(P("exportFormat"), new GUIContent("Format",
                     "MeshAsset: Unity の .asset (Output の上書き・Auto Write ができる)\n" +
@@ -1506,6 +1539,49 @@ namespace VfxMeshTool.EditorUI
                 Debug.LogException(ex);
                 EditorUtility.DisplayDialog("VFX Mesh Tool", ex.Message, "OK");
             }
+        }
+
+        /// <summary>
+        /// 既存のメッシュを読み込む。Undo できる。
+        /// - このツールで保存したメッシュ (設定が埋め込まれている): 作ったときの設定に戻す。
+        /// - それ以外: Imported 形状にして、Transform と UV は初期値 (元の UV のまま)、元の頂点カラーを使う。読み込んだ直後は元と同じ見た目。
+        /// 上書きできるアセット (.asset) なら Output Mesh Asset にも入れて、そのまま上書き保存できるようにする。
+        /// 読み込んだ直後は Auto Write でも書き込まない (次のパラメータ変更から)。
+        /// </summary>
+        public void ImportMesh(Mesh mesh)
+        {
+            if (mesh == null)
+            {
+                return;
+            }
+            Undo.RecordObject(this, "Import Mesh");
+            VfxMeshPreset embedded = VfxMeshExporter.FindEmbeddedSettings(mesh);
+            if (embedded != null && embedded.settings != null)
+            {
+                settings = embedded.settings.Clone();
+                importRestored = true;
+            }
+            else
+            {
+                var defaults = new VfxMeshSettings();
+                settings.shape = VfxShapeType.Imported;
+                settings.importedMesh = mesh;
+                settings.importedKeepColors = true;
+                ResetTransform(settings, defaults);
+                settings.distributionU = defaults.distributionU;
+                settings.distributionV = defaults.distributionV;
+                settings.uv = defaults.uv;
+                importRestored = false;
+            }
+
+            bool writable = VfxMeshExporter.IsWritableMeshAsset(mesh);
+            outputMesh = writable ? mesh : null;
+            exportFormat = VfxExportFormat.MeshAsset;
+            meshName = mesh.name;
+            importSlot = mesh;
+            _autoWriteTarget = null;
+            _so.Update();
+            MarkDirty();
         }
 
         /// <summary>OBJ / FBX を書き出す。プロジェクト外 (Blender 側のフォルダなど) にも保存できる。</summary>

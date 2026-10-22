@@ -147,6 +147,7 @@ public static class VfxUvProjectionTest
     {
         foreach (VfxShapeType shape in System.Enum.GetValues(typeof(VfxShapeType)))
         {
+            if (shape == VfxShapeType.Imported) continue; // needs a source mesh; covered by VfxImportTest
             foreach (VfxUvProjection proj in System.Enum.GetValues(typeof(VfxUvProjection)))
             {
                 var s = new VfxMeshSettings { shape = shape, segmentsU = 12, segmentsV = 6, doubleSided = true };

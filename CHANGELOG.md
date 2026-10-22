@@ -5,6 +5,8 @@ All notable changes to this package are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Import Mesh slot in Export: restores the settings of meshes saved by the tool, or loads any other mesh as the new Imported shape to apply UV, vertex colour, transform and normals.
+- Saved mesh assets carry their generation settings as a hidden sub-asset.
 - UI screenshots in the README, with a numbered layout image matched to a table of window areas.
 - Japanese documentation moved to README.ja.md; README.md is now in English.
 

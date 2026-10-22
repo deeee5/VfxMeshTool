@@ -17,6 +17,8 @@ namespace VfxMeshTool
         Revolve = 6,
         /// <summary>制御点のパスに沿って断面を掃引 (VFExtra Magic Spline 相当)。</summary>
         Path = 7,
+        /// <summary>既存のメッシュをそのまま形として使う。UV・頂点カラー・Transform・法線だけをこのツールでかける。</summary>
+        Imported = 8,
     }
 
     /// <summary>Path シェイプの断面。</summary>
@@ -430,6 +432,12 @@ namespace VfxMeshTool
         [Range(0f, 1f)] public float revolveTopCap;
         [Range(0f, 360f)] public float revolveArc = 360f;
         [Range(-720f, 720f)] public float revolveTwist;
+
+        // ---- Imported (既存のメッシュ) ----
+        [Tooltip("形として使う既存のメッシュ。頂点・三角形・法線・UV0・頂点カラーを読む。")]
+        public Mesh importedMesh;
+        [Tooltip("元のメッシュの頂点カラーをそのまま使う。OFF にすると Vertex Color セクションの設定で塗り直す。")]
+        public bool importedKeepColors = true;
 
         // ---- Path (スプライン掃引) ----
         [Tooltip("パス自体の作り方。Points = 制御点、Curve = カーブで曲げた直線、Coil = 螺旋。")]

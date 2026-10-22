@@ -108,6 +108,7 @@
 | Cross | 板の枚数 / 幅 / 高さ / Alternate Flip U | 交差板 (ビルボード代わりの火柱など) |
 | Revolve | プロファイル点列 (半径, 高さ) / Smooth / Top Cap Curvature / Arc / Twist | 任意の回転体 (ベル、しずく、花瓶型など) |
 | Path | Path Source (Points / Curve / Coil) / 断面 (Ribbon / Tube / Cross / Profile) / Scale・Scale Y・Twist Profile / Up Mode | スプライン掃引 (トレイル、螺旋、ソウラーコースター) |
+| Imported | Source Mesh / Keep Original Colors | 既存のメッシュ (.asset・FBX 内のメッシュなど) の形をそのまま使い、UV・頂点カラー・Transform・法線だけをかける |
 
 ### Revolve / Path の補足
 
@@ -205,12 +206,16 @@ UV セクションは上から順に処理される: Projection → UV Distribut
 
 | ボタン / 項目 | 内容 |
 | --- | --- |
+| Import Mesh | 既存のメッシュの読み込み。このツールで保存したメッシュなら作ったときの設定が戻る。それ以外は Imported 形状になり、読み込んだ直後は元と同じ見た目 (元の UV・頂点カラーのまま)。上書きできる .asset なら Output Mesh Asset にも入る |
+| Output Mesh Asset | 書き込み先のメッシュアセット (Overwrite Output・Auto Write の対象) |
 | Save As New Asset... | `.asset` としての保存と Output Mesh Asset への登録 |
 | Overwrite Output | Output Mesh Asset の中身の差し替え (参照しているシーンのオブジェクトも更新される) |
 | Auto Write Output | パラメータ変更のたびの Output への書き込み。メッシュを入れた直後・ON にした直後・ウィンドウを開いた直後は書き込まない |
 | Export OBJ... / Export FBX... | プロジェクト外にも保存できる OBJ / FBX の書き出し |
 | Create GameObject in Scene | MeshFilter + MeshRenderer を持つ GameObject の作成 (Mat があれば割り当て) |
 
+- このツールで保存した .asset には、作ったときの設定が隠しサブアセットとして入る (Import Mesh で戻すため)。
+- Imported のメッシュを元のアセット自身に上書きするときは、最初の上書きで元の形の複製をアセット内に残し、以後はそれを元に作る (回転などが重ねがけにならない)。
 - OBJ / FBX は右手系に変換して書き出すので、Blender の標準インポーターで向き・大きさが合う。
 - OBJ は同じ曲面の中で位置と頂点カラーが同じ頂点を結合する (筒の継ぎ目・円錐の先端など)。UV の継ぎ目は残る。頂点カラーは `v x y z r g b` 形式 (Blender 4.1 / 5.2 で確認)。
 - FBX は Unity FBX Exporter で書き出す。単位が cm なので、Blender ではオブジェクトのスケールが 0.01 になる (見た目の大きさは正しい。編集前に `Ctrl+A > Scale` で適用すると扱いやすい)。
@@ -271,6 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV 投影・Unfold・Circle to Square・UV Distribution・実寸 UV |
 | VfxExportTest | OBJ / FBX 書き出し (`<project>/exports/`) |
 | VfxResetTest | セクションごとの初期化・表示の Default・原点合わせ |
+| VfxImportTest | Import Mesh (設定の復元・Imported 形状・FBX 内のメッシュ・元のアセットへの上書き) |
 | VfxDccLinkTest | Unity → Blender → Unity の往復 (Blender が必要) |
 | VfxTopCapTest | Revolve の Top Cap Curvature |
 

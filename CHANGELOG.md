@@ -5,7 +5,8 @@ All notable changes to this package are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
-- UI screenshots in the README.
+- UI screenshots in the README, with a numbered layout image matched to a table of window areas.
+- Japanese documentation moved to README.ja.md; README.md is now in English.
 
 ## [0.3.0] - 2026-10-22
 

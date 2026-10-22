@@ -173,31 +173,32 @@ public static class VfxImportTest
         Log.AppendLine("in-place overwrite checked");
     }
 
-    /// <summary>With Override off nothing is written into the Mesh Asset, not even by Auto Write; with it on, Auto Write writes.</summary>
+    /// <summary>Loading a mesh never writes into it: Auto Write is off after loading, and only an explicit Auto Write on writes.</summary>
     private static void OverrideGatesWriting()
     {
         Mesh asset = ForeignMesh("override");
         Bounds original = asset.bounds;
         var w = ScriptableObject.CreateInstance<VfxMeshToolWindow>();
         MethodInfo rebuild = typeof(VfxMeshToolWindow).GetMethod("Rebuild", Any);
+        FieldInfo autoWrite = typeof(VfxMeshToolWindow).GetField("autoWriteOutput", Any);
         try
         {
+            autoWrite.SetValue(w, true); // left on from earlier work
             w.ImportMesh(asset);
-            Expect(!WindowField<bool>(w, "overrideOutput") && !w.CanOverwrite(), "Override must be off right after loading a mesh");
+            Expect(!(bool)autoWrite.GetValue(w), "Auto Write must be off right after loading a mesh");
+            Expect(w.CanOverwrite(), "a writable .asset in the slot should enable Override Imported Mesh");
 
-            typeof(VfxMeshToolWindow).GetField("autoWriteOutput", Any).SetValue(w, true);
             VfxMeshSettings s = WindowSettings(w);
             s.scale = new Vector3(3f, 3f, 3f);
             rebuild.Invoke(w, null);
             rebuild.Invoke(w, null);
-            Expect((asset.bounds.size - original.size).magnitude < 1e-4f, "Auto Write wrote into the Mesh Asset with Override off");
+            Expect((asset.bounds.size - original.size).magnitude < 1e-4f, "the Mesh Asset was written without Auto Write");
 
-            typeof(VfxMeshToolWindow).GetField("overrideOutput", Any).SetValue(w, true);
-            Expect(w.CanOverwrite(), "Override on should allow overwriting a writable .asset");
+            autoWrite.SetValue(w, true);
             rebuild.Invoke(w, null); // arms Auto Write for this target
             rebuild.Invoke(w, null); // writes
-            Log.AppendLine("override: size " + original.size.ToString("0.##") + " -> " + asset.bounds.size.ToString("0.##"));
-            Expect((asset.bounds.size - original.size * 3f).magnitude < 1e-3f, "Auto Write did not write with Override on");
+            Log.AppendLine("auto write: size " + original.size.ToString("0.##") + " -> " + asset.bounds.size.ToString("0.##"));
+            Expect((asset.bounds.size - original.size * 3f).magnitude < 1e-3f, "Auto Write on did not write");
         }
         finally
         {
@@ -224,8 +225,7 @@ public static class VfxImportTest
             VfxMeshSettings s = WindowSettings(w);
             Expect(s.shape == VfxShapeType.Imported, "fbx mesh did not become Imported");
             Expect(WindowField<Mesh>(w, "outputMesh") == fbxMesh, "fbx mesh is not shown in the Mesh Asset slot");
-            typeof(VfxMeshToolWindow).GetField("overrideOutput", Any).SetValue(w, true);
-            Expect(!w.CanOverwrite(), "a mesh inside an FBX must never be overwritable, even with Override on");
+            Expect(!w.CanOverwrite(), "a mesh inside an FBX must never be overwritable (Override Imported Mesh greyed out)");
             VfxMeshData d = VfxMeshBuilder.BuildData(s);
             Expect(d.VertexCount == fbxMesh.vertexCount && d.TriangleCount > 0, "fbx mesh data not read (verts " + d.VertexCount + ")");
             Mesh saved = VfxMeshExporter.SaveMeshAsset(s, Dir + "/torus_edit.asset");

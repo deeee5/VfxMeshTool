@@ -200,19 +200,18 @@ The UV section is applied top to bottom: Projection → UV Distribution → Real
 
 | Format | Extension | Faces | Vertex colour | Use |
 | --- | --- | --- | --- | --- |
-| MeshAsset | .asset | Triangles | RGBA | Use directly in Unity; Overwrite and Auto Write with Override on |
+| MeshAsset | .asset | Triangles | RGBA | Use directly in Unity; overwrite the loaded asset or Auto Write |
 | Obj | .obj | Quads | RGB only | Editing in Blender and other tools |
 | Fbx | .fbx (binary) | Triangles | RGBA | Handing over to DCC tools with vertex alpha |
 
 | Button / item | Contents |
 | --- | --- |
 | Mesh Asset | The base mesh. Dropping a mesh in loads it: a mesh saved by this tool brings back the settings it was made with; any other mesh becomes the Imported shape and looks exactly like the original right after loading (original UVs and vertex colours) |
-| Override | Off (default): the Mesh Asset is never written; save the result as a separate asset with Save As New Asset. On: Overwrite and Auto Write write into the Mesh Asset. Only for a writable .asset (not for meshes inside an FBX). Turns off again whenever a new mesh is loaded |
-| Auto Write | With Override on: writes into the Mesh Asset on every change (scene objects update live). Not right after loading a mesh, turning it on or opening the window |
+| Auto Write | Overwrites the Mesh Asset on every change (scene objects update live). Asks for confirmation when turned on. Only for an overwritable mesh; turns off again when a new mesh is loaded |
 | Save As New Asset... | Saves the result as a new `.asset` and puts it in the Mesh Asset slot (the original is untouched) |
-| Overwrite | With Override on: replaces the contents of the Mesh Asset and saves it (scene objects using it update) |
+| Override Imported Mesh | Overwrites the Mesh Asset with the current settings and saves it, after a confirmation dialog (scene objects using it update). Greyed out when the slot is empty or holds a mesh that cannot be overwritten (inside an FBX, ...) |
 | Export OBJ... / Export FBX... | OBJ / FBX export, also outside the project |
-| Create GameObject in Scene | Creates a GameObject with MeshFilter + MeshRenderer (assigns Mat if set) |
+| Create GameObject in Scene | Creates a GameObject with MeshFilter + MeshRenderer (assigns Mat if set). Asks first whether to overwrite the Mesh Asset or save a new asset |
 
 - An .asset saved by this tool carries the settings it was made with as a hidden sub-asset (restored when the mesh is loaded into the Mesh Asset slot).
 - When an Imported mesh is written back into its own asset, the first write keeps a copy of the original shape inside the asset and later builds start from it, so rotations and the like do not stack.
@@ -277,7 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV projections, Unfold, Circle to Square, UV Distribution, Real Size |
 | VfxExportTest | OBJ / FBX export (`<project>/exports/`) |
 | VfxResetTest | Section resets, display Default, Align to Origin |
-| VfxImportTest | Mesh Asset slot (settings restore, Imported shape, mesh inside an FBX, Override, writing back into the source asset) |
+| VfxImportTest | Mesh Asset slot (settings restore, Imported shape, mesh inside an FBX, Auto Write, writing back into the source asset) |
 | VfxDccLinkTest | Unity → Blender → Unity round trip (needs Blender) |
 | VfxTopCapTest | Revolve Top Cap Curvature |
 

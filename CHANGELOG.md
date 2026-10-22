@@ -8,7 +8,8 @@ All notable changes to this package are documented here. The format follows [Kee
 - Mesh Asset slot in Export (replaces Output Mesh Asset): dropping a mesh in loads it as the base. Meshes saved by the tool restore their settings; any other mesh loads as the new Imported shape to apply UV, vertex colour, transform and normals.
 - DCC Link: Send Format (OBJ / FBX) for Blender too; Edit in Blender exports the current settings in that format and Blender imports it (FBX scale baked to 1). Blender picked as a Custom application uses the same automation.
 - DCC Link: the Executable field is now an Application row showing the app in use, with Use Other... / Auto.
-- Override toggle: the Mesh Asset is only overwritten (Overwrite / Auto Write) when it is on; otherwise results are saved as a separate asset.
+- Override Imported Mesh button (with a confirmation dialog) overwrites the loaded Mesh Asset; it is greyed out when there is nothing overwritable. Turning on Auto Write also asks for confirmation, and Auto Write turns off whenever a new mesh is loaded. Otherwise results are saved as a separate asset with Save As New Asset.
+- Create GameObject in Scene asks whether to overwrite the Mesh Asset or save a new asset before placing it.
 - Saved mesh assets carry their generation settings as a hidden sub-asset.
 - UI screenshots in the README, with a numbered layout image matched to a table of window areas.
 - Japanese documentation moved to README.ja.md; README.md is now in English.

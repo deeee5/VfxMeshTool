@@ -200,19 +200,18 @@ UV セクションは上から順に処理される: Projection → UV Distribut
 
 | Format | 拡張子 | 面 | 頂点カラー | 用途 |
 | --- | --- | --- | --- | --- |
-| MeshAsset | .asset | 三角形 | RGBA | Unity 内でそのまま使う。Override が ON なら上書き・Auto Write |
+| MeshAsset | .asset | 三角形 | RGBA | Unity 内でそのまま使う。読み込んだアセットへの上書き・Auto Write に対応 |
 | Obj | .obj | 四角形 | RGB のみ | Blender などでの編集 |
 | Fbx | .fbx (バイナリ) | 三角形 | RGBA | 頂点アルファを保った DCC への受け渡し |
 
 | ボタン / 項目 | 内容 |
 | --- | --- |
 | Mesh Asset | 編集のベースにするメッシュ。入れると読み込む。このツールで保存したメッシュなら作ったときの設定が戻り、それ以外は Imported 形状になって読み込んだ直後は元と同じ見た目 (元の UV・頂点カラーのまま) |
-| Override | OFF (既定): Mesh Asset には書き込まない。結果は Save As New Asset で別のアセットとして保存する。ON: Overwrite と Auto Write で Mesh Asset に上書きする。上書きできる .asset のときだけ (FBX 内のメッシュなどは不可)。新しいメッシュを読み込むたびに OFF に戻る |
-| Auto Write | Override が ON のとき、変更のたびの Mesh Asset への書き込み (シーンのオブジェクトに即反映)。メッシュを読み込んだ直後・ON にした直後・ウィンドウを開いた直後は書き込まない |
+| Auto Write | 変更のたびの Mesh Asset への上書き (シーンのオブジェクトに即反映)。ON にするときに確認ダイアログが出る。上書きできるメッシュのときだけ使え、新しいメッシュを読み込むと OFF に戻る |
 | Save As New Asset... | 結果の新しい `.asset` としての保存。保存したアセットが Mesh Asset 欄に入る (元のアセットはそのまま) |
-| Overwrite | Override が ON のとき、Mesh Asset の中身の差し替えと保存 (参照しているシーンのオブジェクトも更新される) |
+| Override Imported Mesh | Mesh Asset の今の設定での上書きと保存 (確認ダイアログあり。参照しているシーンのオブジェクトも更新される)。Mesh Asset が空か、上書きできないメッシュ (FBX 内など) のときはグレーアウト |
 | Export OBJ... / Export FBX... | プロジェクト外にも保存できる OBJ / FBX の書き出し |
-| Create GameObject in Scene | MeshFilter + MeshRenderer を持つ GameObject の作成 (Mat があれば割り当て) |
+| Create GameObject in Scene | MeshFilter + MeshRenderer を持つ GameObject の作成 (Mat があれば割り当て)。配置の前に、Mesh Asset への上書きか別名での保存かを選ぶダイアログが出る |
 
 - このツールで保存した .asset には、作ったときの設定が隠しサブアセットとして入る (Mesh Asset 欄に入れたときに戻すため)。
 - Imported のメッシュを元のアセット自身に上書きするときは、最初の上書きで元の形の複製をアセット内に残し、以後はそれを元に作る (回転などが重ねがけにならない)。
@@ -277,7 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV 投影・Unfold・Circle to Square・UV Distribution・実寸 UV |
 | VfxExportTest | OBJ / FBX 書き出し (`<project>/exports/`) |
 | VfxResetTest | セクションごとの初期化・表示の Default・原点合わせ |
-| VfxImportTest | Mesh Asset 欄 (設定の復元・Imported 形状・FBX 内のメッシュ・Override・元のアセットへの上書き) |
+| VfxImportTest | Mesh Asset 欄 (設定の復元・Imported 形状・FBX 内のメッシュ・Auto Write・元のアセットへの上書き) |
 | VfxDccLinkTest | Unity → Blender → Unity の往復 (Blender が必要) |
 | VfxTopCapTest | Revolve の Top Cap Curvature |
 

@@ -5,9 +5,11 @@ Blender 系の VFX メッシュ生成アドオンにある「複数シェイプ 
 
 A procedural mesh generator for real-time VFX that runs inside the Unity Editor: cylinders, discs, spheres, revolve and path shapes with vertex colour / alpha gradients, many UV layouts, live 3D and UV previews, OBJ / FBX export and a round trip to Blender.
 
-| 3D preview | UV: Circle to Square | UV: Unfold (Ring) |
-| --- | --- | --- |
-| ![](Docs~/01_cylinder_textured_3d.png) | ![](Docs~/20_uv_circle_to_square.png) | ![](Docs~/21_uv_unfold_ring.png) |
+![VFX Mesh Tool window: settings on the left, 3D preview top right, UV preview bottom right](Docs~/ui_window.png)
+
+| UV / Export / DCC Link panel | 3D preview | UV: Circle to Square | UV: Unfold (Ring) |
+| --- | --- | --- | --- |
+| ![](Docs~/ui_panel_uv_export.png) | ![](Docs~/01_cylinder_textured_3d.png) | ![](Docs~/20_uv_circle_to_square.png) | ![](Docs~/21_uv_unfold_ring.png) |
 
 ## Install / 導入
 

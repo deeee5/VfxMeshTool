@@ -57,7 +57,7 @@ The colour band at the left of each section header shows what the section change
 
 The ⋮ menu at the right of each section header has **Reset to Default**, which resets only that section (Shape keeps the shape type and resets its parameters; undoable).
 
-![Lower part of the mesh settings panel (UV, Vertex Color, Export, DCC Link)](Docs~/ui_panel_uv_export.png)
+![Mesh settings panel with Transform & Normals and Vertex Distribution folded (UV, Vertex Color, Export with the Mesh Asset slot, DCC Link)](Docs~/ui_panel_uv_export.png)
 
 ### 3D view toolbar (3)
 
@@ -200,21 +200,21 @@ The UV section is applied top to bottom: Projection → UV Distribution → Real
 
 | Format | Extension | Faces | Vertex colour | Use |
 | --- | --- | --- | --- | --- |
-| MeshAsset | .asset | Triangles | RGBA | Use directly in Unity; supports Overwrite and Auto Write |
+| MeshAsset | .asset | Triangles | RGBA | Use directly in Unity; Overwrite and Auto Write with Override on |
 | Obj | .obj | Quads | RGB only | Editing in Blender and other tools |
 | Fbx | .fbx (binary) | Triangles | RGBA | Handing over to DCC tools with vertex alpha |
 
 | Button / item | Contents |
 | --- | --- |
-| Import Mesh | Loads an existing mesh. A mesh saved by this tool brings back the settings it was made with; any other mesh becomes the Imported shape and looks exactly like the original right after loading (original UVs and vertex colours). A writable .asset is also set as Output Mesh Asset |
-| Output Mesh Asset | The mesh asset written to (target of Overwrite Output and Auto Write) |
-| Save As New Asset... | Saves an `.asset` and sets it as Output Mesh Asset |
-| Overwrite Output | Replaces the contents of Output Mesh Asset (scene objects using it update) |
-| Auto Write Output | Writes to Output on every change. Not right after assigning the mesh, turning it on or opening the window |
+| Mesh Asset | The base mesh. Dropping a mesh in loads it: a mesh saved by this tool brings back the settings it was made with; any other mesh becomes the Imported shape and looks exactly like the original right after loading (original UVs and vertex colours) |
+| Override | Off (default): the Mesh Asset is never written; save the result as a separate asset with Save As New Asset. On: Overwrite and Auto Write write into the Mesh Asset. Only for a writable .asset (not for meshes inside an FBX). Turns off again whenever a new mesh is loaded |
+| Auto Write | With Override on: writes into the Mesh Asset on every change (scene objects update live). Not right after loading a mesh, turning it on or opening the window |
+| Save As New Asset... | Saves the result as a new `.asset` and puts it in the Mesh Asset slot (the original is untouched) |
+| Overwrite | With Override on: replaces the contents of the Mesh Asset and saves it (scene objects using it update) |
 | Export OBJ... / Export FBX... | OBJ / FBX export, also outside the project |
 | Create GameObject in Scene | Creates a GameObject with MeshFilter + MeshRenderer (assigns Mat if set) |
 
-- An .asset saved by this tool carries the settings it was made with as a hidden sub-asset (used by Import Mesh).
+- An .asset saved by this tool carries the settings it was made with as a hidden sub-asset (restored when the mesh is loaded into the Mesh Asset slot).
 - When an Imported mesh is written back into its own asset, the first write keeps a copy of the original shape inside the asset and later builds start from it, so rotations and the like do not stack.
 - OBJ and FBX are converted to right-handed coordinates, so they import into Blender with the right orientation and size.
 - OBJ welds vertices with the same position and colour within a surface (cylinder seams, cone tips) and keeps the UV seams. Vertex colours use `v x y z r g b` (checked with Blender 4.1 / 5.2).
@@ -276,7 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV projections, Unfold, Circle to Square, UV Distribution, Real Size |
 | VfxExportTest | OBJ / FBX export (`<project>/exports/`) |
 | VfxResetTest | Section resets, display Default, Align to Origin |
-| VfxImportTest | Import Mesh (settings restore, Imported shape, mesh inside an FBX, writing back into the source asset) |
+| VfxImportTest | Mesh Asset slot (settings restore, Imported shape, mesh inside an FBX, Override, writing back into the source asset) |
 | VfxDccLinkTest | Unity → Blender → Unity round trip (needs Blender) |
 | VfxTopCapTest | Revolve Top Cap Curvature |
 

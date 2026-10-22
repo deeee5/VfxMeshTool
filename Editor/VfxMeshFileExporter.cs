@@ -14,7 +14,7 @@ namespace VfxMeshTool.EditorUI
     /// <summary>書き出し形式。</summary>
     public enum VfxExportFormat
     {
-        /// <summary>Unity の .asset。Output Mesh Asset として上書き・Auto Write ができる。</summary>
+        /// <summary>Unity の .asset。Override を ON にすると Mesh Asset に上書き・Auto Write ができる。</summary>
         MeshAsset = 0,
         /// <summary>.obj。四角形ポリゴン + 継ぎ目の頂点結合で、Blender でそのまま編集しやすい。頂点カラーは RGB のみ。</summary>
         Obj = 1,

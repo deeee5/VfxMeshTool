@@ -23,6 +23,7 @@ public static class VfxImportTest
             RestoreSettings();
             ImportForeignMesh();
             InPlaceOverwriteDoesNotStack();
+            OverrideGatesWriting();
             ImportFromFbx();
         }
         catch (System.Exception ex)
@@ -172,6 +173,39 @@ public static class VfxImportTest
         Log.AppendLine("in-place overwrite checked");
     }
 
+    /// <summary>With Override off nothing is written into the Mesh Asset, not even by Auto Write; with it on, Auto Write writes.</summary>
+    private static void OverrideGatesWriting()
+    {
+        Mesh asset = ForeignMesh("override");
+        Bounds original = asset.bounds;
+        var w = ScriptableObject.CreateInstance<VfxMeshToolWindow>();
+        MethodInfo rebuild = typeof(VfxMeshToolWindow).GetMethod("Rebuild", Any);
+        try
+        {
+            w.ImportMesh(asset);
+            Expect(!WindowField<bool>(w, "overrideOutput") && !w.CanOverwrite(), "Override must be off right after loading a mesh");
+
+            typeof(VfxMeshToolWindow).GetField("autoWriteOutput", Any).SetValue(w, true);
+            VfxMeshSettings s = WindowSettings(w);
+            s.scale = new Vector3(3f, 3f, 3f);
+            rebuild.Invoke(w, null);
+            rebuild.Invoke(w, null);
+            Expect((asset.bounds.size - original.size).magnitude < 1e-4f, "Auto Write wrote into the Mesh Asset with Override off");
+
+            typeof(VfxMeshToolWindow).GetField("overrideOutput", Any).SetValue(w, true);
+            Expect(w.CanOverwrite(), "Override on should allow overwriting a writable .asset");
+            rebuild.Invoke(w, null); // arms Auto Write for this target
+            rebuild.Invoke(w, null); // writes
+            Log.AppendLine("override: size " + original.size.ToString("0.##") + " -> " + asset.bounds.size.ToString("0.##"));
+            Expect((asset.bounds.size - original.size * 3f).magnitude < 1e-3f, "Auto Write did not write with Override on");
+        }
+        finally
+        {
+            Object.DestroyImmediate(w);
+        }
+        Log.AppendLine("override gating checked");
+    }
+
     /// <summary>Meshes inside an FBX (not writable, usually not readable) can be imported and saved as a new asset.</summary>
     private static void ImportFromFbx()
     {
@@ -189,7 +223,9 @@ public static class VfxImportTest
             w.ImportMesh(fbxMesh);
             VfxMeshSettings s = WindowSettings(w);
             Expect(s.shape == VfxShapeType.Imported, "fbx mesh did not become Imported");
-            Expect(WindowField<Mesh>(w, "outputMesh") == null, "fbx mesh must not become the Output (not writable)");
+            Expect(WindowField<Mesh>(w, "outputMesh") == fbxMesh, "fbx mesh is not shown in the Mesh Asset slot");
+            typeof(VfxMeshToolWindow).GetField("overrideOutput", Any).SetValue(w, true);
+            Expect(!w.CanOverwrite(), "a mesh inside an FBX must never be overwritable, even with Override on");
             VfxMeshData d = VfxMeshBuilder.BuildData(s);
             Expect(d.VertexCount == fbxMesh.vertexCount && d.TriangleCount > 0, "fbx mesh data not read (verts " + d.VertexCount + ")");
             Mesh saved = VfxMeshExporter.SaveMeshAsset(s, Dir + "/torus_edit.asset");

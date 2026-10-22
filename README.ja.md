@@ -57,7 +57,7 @@
 
 各セクション見出し右端の ⋮ メニュー > `Reset to Default` で、そのセクションだけ初期値に戻せる (Shape は形状の種類を残してパラメータだけ戻す。Undo できる)。
 
-![メッシュ設定パネルの下側 (UV・頂点カラー・書き出し・DCC Link)](Docs~/ui_panel_uv_export.png)
+![メッシュ設定パネル (Transform & Normals と Vertex Distribution は折りたたみ。UV・頂点カラー・Mesh Asset 欄のある書き出し・DCC Link)](Docs~/ui_panel_uv_export.png)
 
 ### 3D ビューツールバー (③)
 
@@ -200,21 +200,21 @@ UV セクションは上から順に処理される: Projection → UV Distribut
 
 | Format | 拡張子 | 面 | 頂点カラー | 用途 |
 | --- | --- | --- | --- | --- |
-| MeshAsset | .asset | 三角形 | RGBA | Unity 内でそのまま使う。Output の上書き・Auto Write に対応 |
+| MeshAsset | .asset | 三角形 | RGBA | Unity 内でそのまま使う。Override が ON なら上書き・Auto Write |
 | Obj | .obj | 四角形 | RGB のみ | Blender などでの編集 |
 | Fbx | .fbx (バイナリ) | 三角形 | RGBA | 頂点アルファを保った DCC への受け渡し |
 
 | ボタン / 項目 | 内容 |
 | --- | --- |
-| Import Mesh | 既存のメッシュの読み込み。このツールで保存したメッシュなら作ったときの設定が戻る。それ以外は Imported 形状になり、読み込んだ直後は元と同じ見た目 (元の UV・頂点カラーのまま)。上書きできる .asset なら Output Mesh Asset にも入る |
-| Output Mesh Asset | 書き込み先のメッシュアセット (Overwrite Output・Auto Write の対象) |
-| Save As New Asset... | `.asset` としての保存と Output Mesh Asset への登録 |
-| Overwrite Output | Output Mesh Asset の中身の差し替え (参照しているシーンのオブジェクトも更新される) |
-| Auto Write Output | パラメータ変更のたびの Output への書き込み。メッシュを入れた直後・ON にした直後・ウィンドウを開いた直後は書き込まない |
+| Mesh Asset | 編集のベースにするメッシュ。入れると読み込む。このツールで保存したメッシュなら作ったときの設定が戻り、それ以外は Imported 形状になって読み込んだ直後は元と同じ見た目 (元の UV・頂点カラーのまま) |
+| Override | OFF (既定): Mesh Asset には書き込まない。結果は Save As New Asset で別のアセットとして保存する。ON: Overwrite と Auto Write で Mesh Asset に上書きする。上書きできる .asset のときだけ (FBX 内のメッシュなどは不可)。新しいメッシュを読み込むたびに OFF に戻る |
+| Auto Write | Override が ON のとき、変更のたびの Mesh Asset への書き込み (シーンのオブジェクトに即反映)。メッシュを読み込んだ直後・ON にした直後・ウィンドウを開いた直後は書き込まない |
+| Save As New Asset... | 結果の新しい `.asset` としての保存。保存したアセットが Mesh Asset 欄に入る (元のアセットはそのまま) |
+| Overwrite | Override が ON のとき、Mesh Asset の中身の差し替えと保存 (参照しているシーンのオブジェクトも更新される) |
 | Export OBJ... / Export FBX... | プロジェクト外にも保存できる OBJ / FBX の書き出し |
 | Create GameObject in Scene | MeshFilter + MeshRenderer を持つ GameObject の作成 (Mat があれば割り当て) |
 
-- このツールで保存した .asset には、作ったときの設定が隠しサブアセットとして入る (Import Mesh で戻すため)。
+- このツールで保存した .asset には、作ったときの設定が隠しサブアセットとして入る (Mesh Asset 欄に入れたときに戻すため)。
 - Imported のメッシュを元のアセット自身に上書きするときは、最初の上書きで元の形の複製をアセット内に残し、以後はそれを元に作る (回転などが重ねがけにならない)。
 - OBJ / FBX は右手系に変換して書き出すので、Blender の標準インポーターで向き・大きさが合う。
 - OBJ は同じ曲面の中で位置と頂点カラーが同じ頂点を結合する (筒の継ぎ目・円錐の先端など)。UV の継ぎ目は残る。頂点カラーは `v x y z r g b` 形式 (Blender 4.1 / 5.2 で確認)。
@@ -276,7 +276,7 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxUvProjectionTest | UV 投影・Unfold・Circle to Square・UV Distribution・実寸 UV |
 | VfxExportTest | OBJ / FBX 書き出し (`<project>/exports/`) |
 | VfxResetTest | セクションごとの初期化・表示の Default・原点合わせ |
-| VfxImportTest | Import Mesh (設定の復元・Imported 形状・FBX 内のメッシュ・元のアセットへの上書き) |
+| VfxImportTest | Mesh Asset 欄 (設定の復元・Imported 形状・FBX 内のメッシュ・Override・元のアセットへの上書き) |
 | VfxDccLinkTest | Unity → Blender → Unity の往復 (Blender が必要) |
 | VfxTopCapTest | Revolve の Top Cap Curvature |
 

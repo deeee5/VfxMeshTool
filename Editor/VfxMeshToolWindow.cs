@@ -61,9 +61,11 @@ namespace VfxMeshTool.EditorUI
         [SerializeField] private string lastExportDir;
         // DCC から戻ってきたメッシュで差し替えるシーンのオブジェクト
         [SerializeField] private GameObject dccTarget;
-        // Export の Import Mesh 欄に最後に読み込んだメッシュと、それが設定の復元だったか
-        [SerializeField] private Mesh importSlot;
+        // Mesh Asset 欄から最後に読み込んだメッシュと、それが設定の復元だったか
+        [SerializeField] private Mesh importedFrom;
         [SerializeField] private bool importRestored;
+        // ON のときだけ Mesh Asset に上書きする (Overwrite / Auto Write)。OFF なら保存は Save As New Asset で別のアセットに
+        [SerializeField] private bool overrideOutput;
 
         // ---- プレビュー設定 ----
         [SerializeField] private Material userMaterial;
@@ -1355,11 +1357,11 @@ namespace VfxMeshTool.EditorUI
             if (foldExport)
             {
                 EditorGUI.indentLevel++;
-                var picked = (Mesh)EditorGUILayout.ObjectField(new GUIContent("Import Mesh",
-                    "既存のメッシュを読み込んで編集する。このツールで保存したメッシュなら作ったときの設定が戻る。" +
-                    "それ以外 (FBX 内のメッシュなど) は形をそのまま使う Imported 形状になり、UV・頂点カラー・Transform・法線をかけられる"),
-                    importSlot, typeof(Mesh), false);
-                if (picked != importSlot)
+                var picked = (Mesh)EditorGUILayout.ObjectField(new GUIContent("Mesh Asset",
+                    "編集のベースにするメッシュ。入れると読み込む (このツールで保存したメッシュなら作ったときの設定が戻り、" +
+                    "それ以外は形をそのまま使う Imported 形状になる)。Override が ON ならこのアセットに上書きする"),
+                    outputMesh, typeof(Mesh), false);
+                if (picked != outputMesh)
                 {
                     if (picked != null)
                     {
@@ -1367,24 +1369,42 @@ namespace VfxMeshTool.EditorUI
                     }
                     else
                     {
-                        importSlot = null;
+                        Undo.RecordObject(this, "Clear Mesh Asset");
+                        outputMesh = null;
+                        overrideOutput = false;
+                        _so.Update();
                     }
                 }
-                if (importSlot != null)
+                if (outputMesh != null && importedFrom == outputMesh)
                 {
                     EditorGUILayout.LabelField(" ", importRestored ? "作ったときの設定を復元" : "Imported 形状として読み込み", EditorStyles.miniLabel);
                 }
+
+                bool writable = VfxMeshExporter.IsWritableMeshAsset(outputMesh);
+                using (new EditorGUI.DisabledScope(!writable))
+                {
+                    EditorGUILayout.PropertyField(P("overrideOutput"), new GUIContent("Override",
+                        "ON: Mesh Asset に上書きする (Overwrite / Auto Write が使える)。OFF: 上書きしない。保存は Save As New Asset で別のアセットに"));
+                    if (writable && overrideOutput)
+                    {
+                        EditorGUI.indentLevel++;
+                        EditorGUILayout.PropertyField(P("autoWriteOutput"), new GUIContent("Auto Write", "変更のたびに Mesh Asset に書き込む (シーン上のオブジェクトに即反映。ディスクへの保存は Overwrite ボタンで)"));
+                        EditorGUI.indentLevel--;
+                    }
+                }
+                if (outputMesh != null && !writable)
+                {
+                    EditorGUILayout.LabelField(" ", "上書きできないメッシュ (FBX 内など)。Save As New Asset で保存", EditorStyles.miniLabel);
+                }
+
                 EditorGUILayout.PropertyField(P("meshName"), new GUIContent("Mesh Name"));
                 EditorGUILayout.PropertyField(P("exportFormat"), new GUIContent("Format",
-                    "MeshAsset: Unity の .asset (Output の上書き・Auto Write ができる)\n" +
+                    "MeshAsset: Unity の .asset (Override で上書き・Auto Write ができる)\n" +
                     "Obj: 四角形ポリゴン + 継ぎ目の頂点結合。Blender でそのまま編集しやすい。頂点カラーは RGB のみ\n" +
                     "Fbx: バイナリ FBX。頂点カラー RGBA を保つ。三角形"));
 
-                bool writable = VfxMeshExporter.IsWritableMeshAsset(outputMesh);
                 if (exportFormat == VfxExportFormat.MeshAsset)
                 {
-                    EditorGUILayout.PropertyField(P("outputMesh"), new GUIContent("Output Mesh Asset"));
-                    EditorGUILayout.PropertyField(P("autoWriteOutput"), new GUIContent("Auto Write Output", "変更のたびに Output Mesh Asset を上書きする (シーン上のオブジェクトに即反映。保存は Overwrite ボタンで)"));
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         GUILayout.Space(EditorGUI.indentLevel * 15f);
@@ -1392,9 +1412,9 @@ namespace VfxMeshTool.EditorUI
                         {
                             SaveMeshAsNew();
                         }
-                        using (new EditorGUI.DisabledScope(!writable))
+                        using (new EditorGUI.DisabledScope(!CanOverwrite()))
                         {
-                            if (GUILayout.Button("Overwrite Output"))
+                            if (GUILayout.Button(new GUIContent("Overwrite", "Mesh Asset に上書きして保存する (Override が ON のとき)")))
                             {
                                 VfxMeshExporter.OverwriteMeshAsset(VfxMeshBuilder.BuildData(settings), settings, outputMesh, true, true);
                             }
@@ -1427,10 +1447,6 @@ namespace VfxMeshTool.EditorUI
                     {
                         CreateInScene();
                     }
-                }
-                if (exportFormat == VfxExportFormat.MeshAsset && outputMesh != null && !writable)
-                {
-                    EditorGUILayout.HelpBox("Output Mesh は上書きできるアセット (.asset) ではありません。Save As New Asset で新規作成してください。", MessageType.Warning);
                 }
                 EditorGUI.indentLevel--;
             }
@@ -1545,8 +1561,7 @@ namespace VfxMeshTool.EditorUI
         /// 既存のメッシュを読み込む。Undo できる。
         /// - このツールで保存したメッシュ (設定が埋め込まれている): 作ったときの設定に戻す。
         /// - それ以外: Imported 形状にして、Transform と UV は初期値 (元の UV のまま)、元の頂点カラーを使う。読み込んだ直後は元と同じ見た目。
-        /// 上書きできるアセット (.asset) なら Output Mesh Asset にも入れて、そのまま上書き保存できるようにする。
-        /// 読み込んだ直後は Auto Write でも書き込まない (次のパラメータ変更から)。
+        /// 読み込んだメッシュは Mesh Asset 欄に入り、Override は OFF に戻す (上書きするには明示的に ON にする)。
         /// </summary>
         public void ImportMesh(Mesh mesh)
         {
@@ -1574,11 +1589,12 @@ namespace VfxMeshTool.EditorUI
                 importRestored = false;
             }
 
-            bool writable = VfxMeshExporter.IsWritableMeshAsset(mesh);
-            outputMesh = writable ? mesh : null;
+            // 入れたメッシュはそのまま Mesh Asset 欄に残す。上書きは Override を ON にしたときだけ
+            outputMesh = mesh;
+            overrideOutput = false;
             exportFormat = VfxExportFormat.MeshAsset;
             meshName = mesh.name;
-            importSlot = mesh;
+            importedFrom = mesh;
             _autoWriteTarget = null;
             _so.Update();
             MarkDirty();
@@ -1615,6 +1631,12 @@ namespace VfxMeshTool.EditorUI
             }
         }
 
+        /// <summary>Mesh Asset に上書きしてよいか (Override が ON で、上書きできる .asset)。</summary>
+        public bool CanOverwrite()
+        {
+            return overrideOutput && VfxMeshExporter.IsWritableMeshAsset(outputMesh);
+        }
+
         private void SaveMeshAsNew()
         {
             string defaultName = string.IsNullOrEmpty(meshName) ? "VFX_Mesh" : meshName;
@@ -1630,8 +1652,13 @@ namespace VfxMeshTool.EditorUI
 
         private void CreateInScene()
         {
+            // 上書きしない設定のときは Mesh Asset が今の形と違うかもしれないので、保存してから配置する
             Mesh mesh = outputMesh;
-            if (!VfxMeshExporter.IsWritableMeshAsset(mesh))
+            if (CanOverwrite())
+            {
+                VfxMeshExporter.OverwriteMeshAsset(VfxMeshBuilder.BuildData(settings), settings, mesh, true, true);
+            }
+            else
             {
                 bool ok = EditorUtility.DisplayDialog("VFX Mesh Tool",
                     "シーンに配置するには先にメッシュをアセットとして保存する必要があります。保存しますか?", "保存", "キャンセル");
@@ -2515,7 +2542,7 @@ namespace VfxMeshTool.EditorUI
                 // Output に入れた直後・Auto Write を ON にした直後・ウィンドウを開いた直後の再構築では書き込まず、
                 // 書き込み先として覚えるだけにする。差し込んだだけで既存アセットの中身が消えないように、
                 // 書き込みは次のパラメータ変更から始める
-                bool canWrite = autoWriteOutput && VfxMeshExporter.IsWritableMeshAsset(outputMesh);
+                bool canWrite = autoWriteOutput && CanOverwrite();
                 if (canWrite && _autoWriteTarget == outputMesh)
                 {
                     VfxMeshExporter.OverwriteMeshAsset(data, settings, outputMesh, false, false);

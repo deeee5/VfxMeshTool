@@ -216,7 +216,10 @@ namespace VfxMeshTool.EditorUI
         {
             if (session.targetInstanceId != 0)
             {
+                // Unity 6.3 以降は非推奨 (EntityId 版がある) だが、2021.3 まで対応するためこちらを使う
+#pragma warning disable CS0618
                 var go = EditorUtility.InstanceIDToObject(session.targetInstanceId) as GameObject;
+#pragma warning restore CS0618
                 if (go != null) return go;
             }
             GlobalObjectId id;

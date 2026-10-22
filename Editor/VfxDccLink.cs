@@ -12,7 +12,7 @@ using Debug = UnityEngine.Debug;
 
 namespace VfxMeshTool.EditorUI
 {
-    /// <summary>連携する DCC ツール。Blender は専用スクリプトで送受信まで自動化する。Custom は任意の DCC を起動するだけ。</summary>
+    /// <summary>連携する DCC ツール。Blender: 書き出し → 起動 → 読み込み → 送り返しを専用スクリプトで自動化。Custom: 書き出し → 起動。</summary>
     public enum VfxDccKind
     {
         Blender = 0,

@@ -1463,7 +1463,7 @@ namespace VfxMeshTool.EditorUI
                 EditorGUI.indentLevel++;
                 VfxDccKind kind = VfxDccLink.Kind;
                 VfxDccKind newKind = (VfxDccKind)EditorGUILayout.EnumPopup(new GUIContent("DCC",
-                    "Blender: 取り込み・送り返し (ボタン / 保存時) まで自動\nCustom: 任意の DCC を起動するだけ。戻すときは Return のパスに FBX / OBJ を書き出す"), kind);
+                    "Blender: 書き出し → 起動 → 読み込み → 送り返し (ボタン / 保存時) を自動\nCustom: 書き出し → 起動。戻すときは Return のパスに FBX / OBJ を書き出す"), kind);
                 if (newKind != kind)
                 {
                     VfxDccLink.Kind = newKind;
@@ -1498,9 +1498,10 @@ namespace VfxMeshTool.EditorUI
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15f);
                     string sendLabel = blenderFlow ? "Edit in Blender" : "Open in DCC";
+                    string fmtName = VfxDccLink.SendFormat.ToString().ToUpperInvariant();
                     string sendTip = blenderFlow
-                        ? "今の設定を " + VfxDccLink.SendFormat.ToString().ToUpperInvariant() + " で書き出して Blender を起動し、読み込むところまで行う"
-                        : "今の設定を " + VfxDccLink.SendFormat.ToString().ToUpperInvariant() + " で書き出してアプリケーションを起動する";
+                        ? "今の設定を " + fmtName + " で書き出し → Blender を起動 → 読み込み"
+                        : "今の設定を " + fmtName + " で書き出し → アプリケーションを起動";
                     if (GUILayout.Button(new GUIContent(sendLabel, sendTip)))
                     {
                         bool ok = !resumable || EditorUtility.DisplayDialog("VFX Mesh Tool",
@@ -1555,7 +1556,7 @@ namespace VfxMeshTool.EditorUI
                 string button = kind == VfxDccKind.Blender && !hasChosen ? "Use Other..." : (hasChosen ? "Change..." : "Select...");
                 string tip = kind == VfxDccKind.Blender
                     ? "自動検出とは別の Blender (別のバージョンなど) を使うときに、その blender.exe を選ぶ"
-                    : "起動するアプリケーションの実行ファイルを選ぶ。Blender を選んだ場合は読み込み・送り返しまで自動になる";
+                    : "起動するアプリケーションを選ぶ。Blender なら読み込み・送り返しも自動";
                 if (GUILayout.Button(new GUIContent(button, tip), EditorStyles.miniButton, GUILayout.Width(82f)))
                 {
                     string dir = hasChosen ? System.IO.Path.GetDirectoryName(chosen) : "";

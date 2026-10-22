@@ -224,12 +224,12 @@ The UV section is applied top to bottom: Projection → UV Distribution → Real
 
 | Item | Contents |
 | --- | --- |
-| DCC | Blender (import and send-back are automated) / Custom (any other application) |
+| DCC | Blender (export → launch → import → send back, automated) / Custom (any other application: export → launch) |
 | Application | The application that is launched. Blender is auto-detected (shown as `Blender 5.2/blender.exe (自動検出)`); **Use Other...** picks a different one (another Blender version, or any app under Custom) and **Auto** goes back to auto-detection. If the app picked under Custom is Blender, the automatic import and send-back are used as well |
 | Send Format | Format the current settings are exported in before launching: Obj (quads; for Blender, vertex colours with alpha are reapplied) / Fbx (triangles, RGBA vertex colours; for Blender, the centimetre scale is baked so the object scale is 1) |
 | Arguments | Launch arguments for a non-Blender Custom app (`{file}` = the sent file, `{return}` = the return path) |
 | Target | Scene object whose mesh is replaced when the mesh comes back. Empty = a new object is created |
-| Edit in Blender / Open in DCC | Exports the current settings in the Send Format and launches the application (for Blender, the file is imported automatically) |
+| Edit in Blender / Open in DCC | Exports the current settings in the Send Format → launches the application (→ imports the file, for Blender) |
 | Resume | Opens the previous .blend to continue editing in Blender (only when there is one) |
 | Return | Path the DCC writes back to (Copy copies the absolute path) |
 

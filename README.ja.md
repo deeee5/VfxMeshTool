@@ -224,12 +224,12 @@ UV セクションは上から順に処理される: Projection → UV Distribut
 
 | 項目 | 内容 |
 | --- | --- |
-| DCC | Blender (読み込み・送り返しまで自動) / Custom (それ以外のアプリケーション) |
+| DCC | Blender (書き出し → 起動 → 読み込み → 送り返しを自動) / Custom (それ以外のアプリケーション。書き出し → 起動) |
 | Application | 起動するアプリケーション。Blender は自動検出 (`Blender 5.2/blender.exe (自動検出)` のように表示)。**Use Other...** で別のもの (別バージョンの Blender、Custom なら任意のアプリ) を選び、**Auto** で自動検出に戻す。Custom で選んだアプリが Blender なら、読み込み・送り返しの自動化も使われる |
 | Send Format | 起動の前に今の設定を書き出す形式。Obj (四角形。Blender ではアルファ付きの頂点カラーも付け直す) / Fbx (三角形、頂点カラー RGBA。Blender では cm 単位のスケールを焼き込んでオブジェクトのスケールを 1 にする) |
 | Arguments | Blender 以外の Custom アプリの起動引数 (`{file}` = 送ったファイル、`{return}` = 戻し先) |
 | Target | 戻ってきたメッシュで差し替えるシーンのオブジェクト。空なら戻ってきたときにシーンに作る |
-| Edit in Blender / Open in DCC | 今の設定を Send Format で書き出してアプリケーションを起動するボタン (Blender ならファイルの読み込みまで自動) |
+| Edit in Blender / Open in DCC | 今の設定を Send Format で書き出し → アプリケーションを起動 (Blender なら → 読み込み) |
 | Resume | 前回の .blend を開いて Blender での編集を続けるボタン (前回の編集があるときだけ) |
 | Return | DCC から書き出す戻し先のパス (Copy で絶対パスをコピー) |
 

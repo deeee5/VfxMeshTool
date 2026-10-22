@@ -1,0 +1,25 @@
+{
+    "name": "VfxMeshTool.Editor",
+    "rootNamespace": "VfxMeshTool.EditorUI",
+    "references": [
+        "VfxMeshTool.Runtime",
+        "Unity.Formats.Fbx.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.formats.fbx",
+            "expression": "4.0.0",
+            "define": "VFXMESHTOOL_FBX"
+        }
+    ],
+    "noEngineReferences": false
+}

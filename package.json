@@ -1,0 +1,24 @@
+{
+  "name": "com.deeee5.vfxmeshtool",
+  "displayName": "VFX Mesh Tool",
+  "version": "0.3.0",
+  "unity": "2021.3",
+  "description": "Procedural mesh generator for real-time VFX inside the Unity Editor: cylinders, discs, revolve and path shapes with vertex colour / alpha gradients, UV projections (planar, cylindrical, spherical, polar, unfold, circle-to-square), live 3D and UV previews, OBJ / FBX export and a round trip to Blender.\nリアルタイム VFX 向けメッシュを Unity エディタ内で生成するツール。",
+  "keywords": ["vfx", "mesh", "procedural", "uv", "editor", "blender"],
+  "author": {
+    "name": "deeee5",
+    "url": "https://github.com/deeee5"
+  },
+  "license": "MIT",
+  "documentationUrl": "https://github.com/deeee5/VfxMeshTool#readme",
+  "changelogUrl": "https://github.com/deeee5/VfxMeshTool/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/deeee5/VfxMeshTool/blob/main/LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deeee5/VfxMeshTool.git"
+  },
+  "dependencies": {
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.formats.fbx": "5.1.6"
+  }
+}

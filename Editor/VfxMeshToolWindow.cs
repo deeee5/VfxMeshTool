@@ -1470,25 +1470,38 @@ namespace VfxMeshTool.EditorUI
                     kind = newKind;
                 }
 
-                DrawExecutableField(kind);
-                if (kind == VfxDccKind.Custom)
+                DrawApplicationField(kind);
+                bool blenderFlow = VfxDccLink.UsesBlenderAdapter;
+
+                VfxExportFormat currentFormat = kind == VfxDccKind.Blender ? VfxDccLink.BlenderFormat : VfxDccLink.CustomFormat;
+                var fmt = (VfxExportFormat)EditorGUILayout.IntPopup(new GUIContent("Send Format",
+                        "今の設定のメッシュを書き出す形式。\nObj: 四角形。Blender ではアルファ付きの頂点カラーも付け直す\nFbx: 三角形。頂点カラー RGBA"),
+                    (int)currentFormat,
+                    new[] { new GUIContent("Obj"), new GUIContent("Fbx") }, new[] { (int)VfxExportFormat.Obj, (int)VfxExportFormat.Fbx });
+                if (fmt != currentFormat)
+                {
+                    if (kind == VfxDccKind.Blender) VfxDccLink.BlenderFormat = fmt;
+                    else VfxDccLink.CustomFormat = fmt;
+                }
+                if (kind == VfxDccKind.Custom && !blenderFlow)
                 {
                     string args = EditorGUILayout.TextField(new GUIContent("Arguments", "起動引数。{file} = 送ったファイル、{return} = 戻し先"), VfxDccLink.CustomArgs);
                     if (args != VfxDccLink.CustomArgs) VfxDccLink.CustomArgs = args;
-                    var fmt = (VfxExportFormat)EditorGUILayout.IntPopup(new GUIContent("Send Format"), (int)VfxDccLink.CustomFormat,
-                        new[] { new GUIContent("Fbx"), new GUIContent("Obj") }, new[] { (int)VfxExportFormat.Fbx, (int)VfxExportFormat.Obj });
-                    if (fmt != VfxDccLink.CustomFormat) VfxDccLink.CustomFormat = fmt;
                 }
 
                 EditorGUILayout.PropertyField(P("dccTarget"), new GUIContent("Target",
                     "戻ってきたメッシュで差し替えるシーンのオブジェクト。空なら戻ってきたときにシーンに作る"));
 
                 string name = string.IsNullOrEmpty(meshName) ? "VFX_Mesh" : meshName;
-                bool resumable = kind == VfxDccKind.Blender && VfxDccLink.HasBlenderSession(name);
+                bool resumable = blenderFlow && VfxDccLink.HasBlenderSession(name);
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15f);
-                    if (GUILayout.Button(kind == VfxDccKind.Blender ? "Edit in Blender" : "Open in DCC"))
+                    string sendLabel = blenderFlow ? "Edit in Blender" : "Open in DCC";
+                    string sendTip = blenderFlow
+                        ? "今の設定を " + VfxDccLink.SendFormat.ToString().ToUpperInvariant() + " で書き出して Blender を起動し、読み込むところまで行う"
+                        : "今の設定を " + VfxDccLink.SendFormat.ToString().ToUpperInvariant() + " で書き出してアプリケーションを起動する";
+                    if (GUILayout.Button(new GUIContent(sendLabel, sendTip)))
                     {
                         bool ok = !resumable || EditorUtility.DisplayDialog("VFX Mesh Tool",
                             "前回 Blender で編集した " + name + ".blend があります。破棄して、今の設定のメッシュを送り直しますか?", "送り直す", "キャンセル");
@@ -1514,34 +1527,59 @@ namespace VfxMeshTool.EditorUI
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
-        private void DrawExecutableField(VfxDccKind kind)
+        /// <summary>
+        /// 起動するアプリケーションの行。何が使われるか (自動検出の Blender / 選んだアプリ) を表示し、
+        /// 別のアプリケーションに変えるボタンと、自動検出に戻すボタンを並べる。
+        /// フルパスはパネル幅に収まらないので、フォルダ名 + ファイル名だけ出してパスはツールチップにする。
+        /// </summary>
+        private void DrawApplicationField(VfxDccKind kind)
         {
-            string current = kind == VfxDccKind.Blender ? VfxDccLink.BlenderPath : VfxDccLink.CustomPath;
+            string chosen = kind == VfxDccKind.Blender ? VfxDccLink.BlenderPath : VfxDccLink.CustomPath;
+            bool hasChosen = !string.IsNullOrEmpty(chosen);
+            string shown;
+            string fullPath;
+            if (kind == VfxDccKind.Blender && !hasChosen)
+            {
+                fullPath = VfxDccLink.DetectBlender();
+                shown = fullPath != null ? ShortAppName(fullPath) + " (自動検出)" : "Blender が見つかりません";
+            }
+            else
+            {
+                fullPath = chosen;
+                shown = hasChosen ? ShortAppName(chosen) + (System.IO.File.Exists(chosen) ? "" : " (見つかりません)") : "未選択";
+            }
+
             using (new EditorGUILayout.HorizontalScope())
             {
-                string edited = EditorGUILayout.TextField(new GUIContent("Executable",
-                    kind == VfxDccKind.Blender ? "空なら自動検出した Blender を使う" : "起動する DCC の実行ファイル"), current);
-                if (GUILayout.Button("...", EditorStyles.miniButton, GUILayout.Width(26f)))
+                EditorGUILayout.LabelField(new GUIContent("Application", "起動するアプリケーション"), new GUIContent(shown, fullPath));
+                string button = kind == VfxDccKind.Blender && !hasChosen ? "Use Other..." : (hasChosen ? "Change..." : "Select...");
+                string tip = kind == VfxDccKind.Blender
+                    ? "自動検出とは別の Blender (別のバージョンなど) を使うときに、その blender.exe を選ぶ"
+                    : "起動するアプリケーションの実行ファイルを選ぶ。Blender を選んだ場合は読み込み・送り返しまで自動になる";
+                if (GUILayout.Button(new GUIContent(button, tip), EditorStyles.miniButton, GUILayout.Width(82f)))
                 {
-                    string dir = string.IsNullOrEmpty(current) ? "" : System.IO.Path.GetDirectoryName(current);
-                    string picked = EditorUtility.OpenFilePanel("Executable", dir, Application.platform == RuntimePlatform.WindowsEditor ? "exe" : "");
-                    if (!string.IsNullOrEmpty(picked)) edited = picked;
+                    string dir = hasChosen ? System.IO.Path.GetDirectoryName(chosen) : "";
+                    string picked = EditorUtility.OpenFilePanel("Application", dir, Application.platform == RuntimePlatform.WindowsEditor ? "exe" : "");
+                    if (!string.IsNullOrEmpty(picked))
+                    {
+                        if (kind == VfxDccKind.Blender) VfxDccLink.BlenderPath = picked;
+                        else VfxDccLink.CustomPath = picked;
+                    }
                 }
-                if (edited != current)
+                if (kind == VfxDccKind.Blender && hasChosen &&
+                    GUILayout.Button(new GUIContent("Auto", "自動検出の Blender に戻す"), EditorStyles.miniButton, GUILayout.Width(44f)))
                 {
-                    if (kind == VfxDccKind.Blender) VfxDccLink.BlenderPath = edited;
-                    else VfxDccLink.CustomPath = edited;
+                    VfxDccLink.BlenderPath = "";
                 }
             }
-            if (kind == VfxDccKind.Blender && string.IsNullOrEmpty(VfxDccLink.BlenderPath))
-            {
-                // フルパスはパネル幅に収まらず切れるので、フォルダ名 (Blender 5.2 など) だけ出してパスはツールチップにする
-                string detected = VfxDccLink.DetectBlender();
-                string shown = detected != null
-                    ? "Auto: " + System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(detected))
-                    : "Blender が見つかりません";
-                EditorGUILayout.LabelField(new GUIContent(" "), new GUIContent(shown, detected), EditorStyles.miniLabel);
-            }
+        }
+
+        /// <summary>"Blender 5.2/blender.exe" のように、フォルダ名とファイル名だけにする。</summary>
+        private static string ShortAppName(string path)
+        {
+            string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? "");
+            string file = System.IO.Path.GetFileName(path);
+            return string.IsNullOrEmpty(folder) ? file : folder + "/" + file;
         }
 
         private void OpenInDcc(bool resume)

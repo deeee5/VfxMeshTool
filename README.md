@@ -224,19 +224,20 @@ The UV section is applied top to bottom: Projection → UV Distribution → Real
 
 | Item | Contents |
 | --- | --- |
-| DCC | Blender (import and send-back are automated) / Custom (only launches any DCC) |
-| Executable | The DCC executable. For Blender, leave empty to auto-detect (shown as `Auto: Blender 5.2`) |
-| Arguments / Send Format | Custom launch arguments (`{file}` = the sent file, `{return}` = the return path) and the format to send |
+| DCC | Blender (import and send-back are automated) / Custom (any other application) |
+| Application | The application that is launched. Blender is auto-detected (shown as `Blender 5.2/blender.exe (自動検出)`); **Use Other...** picks a different one (another Blender version, or any app under Custom) and **Auto** goes back to auto-detection. If the app picked under Custom is Blender, the automatic import and send-back are used as well |
+| Send Format | Format the current settings are exported in before launching: Obj (quads; for Blender, vertex colours with alpha are reapplied) / Fbx (triangles, RGBA vertex colours; for Blender, the centimetre scale is baked so the object scale is 1) |
+| Arguments | Launch arguments for a non-Blender Custom app (`{file}` = the sent file, `{return}` = the return path) |
 | Target | Scene object whose mesh is replaced when the mesh comes back. Empty = a new object is created |
-| Edit in Blender / Open in DCC | Sends the mesh and launches the DCC |
+| Edit in Blender / Open in DCC | Exports the current settings in the Send Format and launches the application (for Blender, the file is imported automatically) |
 | Resume | Opens the previous .blend to continue editing in Blender (only when there is one) |
 | Return | Path the DCC writes back to (Copy copies the absolute path) |
 
-1. Choose a Target and press **Edit in Blender**. Blender starts with the mesh loaded (including vertex alpha).
+1. Choose a Target and press **Edit in Blender**. The current settings are exported as OBJ or FBX (Send Format), Blender starts and imports the file (including vertex alpha).
 2. Edit in Blender and press **Send to Unity** in the 3D view sidebar (N) > **VFX Mesh** tab. With **Send on Save** on, every save (Ctrl+S) sends it. Modifiers and the object transform are baked.
 3. Unity watches the return folder, imports the file even without focus and replaces the Target's mesh (undoable).
 
-- With Custom, export an FBX to the `Return` path and it is picked up the same way.
+- With a non-Blender Custom app, export an FBX to the `Return` path and it is picked up the same way.
 - Send folder: `<project>/VfxMeshBridge/` (outside Assets). Return folder: `Assets/VfxMeshBridge/<Mesh Name>.fbx`.
 - A mesh edited in Blender is no longer the parametric shape. Use **Resume** to keep editing; **Edit in Blender** sends the current parameters again and discards the Blender edits.
 - DCC settings are stored per machine (EditorPrefs). The Blender script is `Editor/DccAdapters/vfxmesh_blender_bridge.py`.

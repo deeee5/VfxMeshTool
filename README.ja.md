@@ -224,19 +224,20 @@ UV セクションは上から順に処理される: Projection → UV Distribut
 
 | 項目 | 内容 |
 | --- | --- |
-| DCC | Blender (受け取り・送り返しまで自動) / Custom (任意の DCC の起動のみ) |
-| Executable | DCC の実行ファイル。Blender は空なら自動検出 (`Auto: Blender 5.2` のように表示) |
-| Arguments / Send Format | Custom の起動引数 (`{file}` = 送ったファイル、`{return}` = 戻し先) と送る形式 |
+| DCC | Blender (読み込み・送り返しまで自動) / Custom (それ以外のアプリケーション) |
+| Application | 起動するアプリケーション。Blender は自動検出 (`Blender 5.2/blender.exe (自動検出)` のように表示)。**Use Other...** で別のもの (別バージョンの Blender、Custom なら任意のアプリ) を選び、**Auto** で自動検出に戻す。Custom で選んだアプリが Blender なら、読み込み・送り返しの自動化も使われる |
+| Send Format | 起動の前に今の設定を書き出す形式。Obj (四角形。Blender ではアルファ付きの頂点カラーも付け直す) / Fbx (三角形、頂点カラー RGBA。Blender では cm 単位のスケールを焼き込んでオブジェクトのスケールを 1 にする) |
+| Arguments | Blender 以外の Custom アプリの起動引数 (`{file}` = 送ったファイル、`{return}` = 戻し先) |
 | Target | 戻ってきたメッシュで差し替えるシーンのオブジェクト。空なら戻ってきたときにシーンに作る |
-| Edit in Blender / Open in DCC | 送って DCC を起動するボタン |
+| Edit in Blender / Open in DCC | 今の設定を Send Format で書き出してアプリケーションを起動するボタン (Blender ならファイルの読み込みまで自動) |
 | Resume | 前回の .blend を開いて Blender での編集を続けるボタン (前回の編集があるときだけ) |
 | Return | DCC から書き出す戻し先のパス (Copy で絶対パスをコピー) |
 
-1. Target を選んで `Edit in Blender` を押す。Blender が起動してメッシュが読み込まれる (頂点アルファも含む)。
+1. Target を選んで `Edit in Blender` を押す。今の設定が OBJ か FBX (Send Format) で書き出され、Blender が起動してそのファイルを読み込む (頂点アルファも含む)。
 2. Blender で編集し、3D ビューのサイドバー (N) > `VFX Mesh` タブの `Send to Unity` を押す。`Send on Save` が ON なら保存 (Ctrl+S) のたびに送る。モディファイアとオブジェクトの Transform は焼き込まれる。
 3. Unity が戻りフォルダを監視していて、フォーカスが無くても取り込み、Target のメッシュを差し替える (Undo できる)。
 
-- Custom の場合は `Return` のパスに FBX を書き出せば同じように取り込まれる。
+- Blender 以外の Custom アプリの場合は `Return` のパスに FBX を書き出せば同じように取り込まれる。
 - 送信フォルダ: `<プロジェクト>/VfxMeshBridge/` (Assets の外)。戻りフォルダ: `Assets/VfxMeshBridge/<Mesh Name>.fbx`。
 - 一度 Blender で編集したメッシュはパラメータで作った形ではなくなる。続きは `Resume` で開く (`Edit in Blender` は今のパラメータで送り直すので、Blender での編集は破棄される)。
 - DCC の設定はマシンごと (EditorPrefs) に保存される。Blender 側のスクリプトは `Editor/DccAdapters/vfxmesh_blender_bridge.py`。

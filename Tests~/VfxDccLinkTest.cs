@@ -28,7 +28,30 @@ public static class VfxDccLinkTest
             else
             {
                 Log.AppendLine("blender: " + VfxDccLink.ResolveBlender());
-                RoundTrip();
+                // the link settings live in EditorPrefs (shared with the real editor), so put them back afterwards
+                VfxDccKind kind = VfxDccLink.Kind;
+                VfxExportFormat blenderFormat = VfxDccLink.BlenderFormat;
+                string customPath = VfxDccLink.CustomPath;
+                try
+                {
+                    VfxDccLink.Kind = VfxDccKind.Blender;
+                    VfxDccLink.BlenderFormat = VfxExportFormat.Obj;
+                    RoundTrip("obj");
+                    VfxDccLink.BlenderFormat = VfxExportFormat.Fbx;
+                    RoundTrip("fbx");
+
+                    // Blender chosen as a Custom application goes through the same automatic import
+                    VfxDccLink.Kind = VfxDccKind.Custom;
+                    VfxDccLink.CustomPath = VfxDccLink.ResolveBlender();
+                    Expect(VfxDccLink.UsesBlenderAdapter, "Blender picked under Custom is not recognised as Blender");
+                    RoundTrip("custom-blender");
+                }
+                finally
+                {
+                    VfxDccLink.Kind = kind;
+                    VfxDccLink.BlenderFormat = blenderFormat;
+                    VfxDccLink.CustomPath = customPath;
+                }
             }
         }
         catch (System.Exception ex)
@@ -52,10 +75,10 @@ public static class VfxDccLinkTest
         return s;
     }
 
-    private static void RoundTrip()
+    private static void RoundTrip(string label)
     {
-        VfxDccLink.Kind = VfxDccKind.Blender;
-        const string name = "dcc_roundtrip";
+        string name = "dcc_roundtrip_" + label.Replace("-", "_");
+        Log.AppendLine("== " + label + " (send format " + VfxDccLink.SendFormat + ")");
         string returnPath = VfxDccLink.ReturnAssetPath(name);
         if (File.Exists(returnPath)) AssetDatabase.DeleteAsset(returnPath);
 
@@ -65,22 +88,22 @@ public static class VfxDccLinkTest
 
         VfxMeshSettings s = Settings();
         Process p = VfxDccLink.Open(s, name, target, false, true, "--autosend", "-b --factory-startup");
-        if (!WaitFor(p, "send")) return;
+        if (!WaitFor(p, label + " send")) return;
         Expect(VfxDccLink.HasBlenderSession(name), ".blend was not saved for resuming");
 
         Mesh returned = Receive(returnPath, target);
         if (returned == null) return;
-        Compare(VfxMeshBuilder.BuildData(s), returned, "first trip");
+        Compare(VfxMeshBuilder.BuildData(s), returned, label + " first trip");
 
         // resume: reopen the saved .blend and send again without regenerating
         File.Delete(Path.GetFullPath(returnPath));
         AssetDatabase.Refresh();
         Process p2 = VfxDccLink.Open(s, name, target, true, true, "--autosend", "-b --factory-startup");
-        if (!WaitFor(p2, "resume")) return;
+        if (!WaitFor(p2, label + " resume")) return;
         Mesh again = Receive(returnPath, target);
         if (again != null)
         {
-            Compare(VfxMeshBuilder.BuildData(s), again, "resume");
+            Compare(VfxMeshBuilder.BuildData(s), again, label + " resume");
         }
     }
 

@@ -71,6 +71,37 @@ namespace VfxMeshTool.EditorUI
             set { EditorPrefs.SetInt(PrefPrefix + "CustomFormat", (int)value); }
         }
 
+        /// <summary>Blender に送る形式 (Obj = 四角形 + アルファ付き頂点カラー / Fbx = 三角形、RGBA 頂点カラー)。</summary>
+        public static VfxExportFormat BlenderFormat
+        {
+            get { return (VfxExportFormat)EditorPrefs.GetInt(PrefPrefix + "BlenderFormat", (int)VfxExportFormat.Obj); }
+            set { EditorPrefs.SetInt(PrefPrefix + "BlenderFormat", (int)value); }
+        }
+
+        /// <summary>実行ファイルが Blender か (Custom で Blender を選んだ場合も Blender 用の取り込み・送り返しを使う)。</summary>
+        public static bool IsBlenderExecutable(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string file = Path.GetFileNameWithoutExtension(path);
+            return file.StartsWith("blender", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>今の設定で Blender 用の自動取り込み・送り返し (アダプタ) を使うか。</summary>
+        public static bool UsesBlenderAdapter
+        {
+            get { return Kind == VfxDccKind.Blender || IsBlenderExecutable(CustomPath); }
+        }
+
+        /// <summary>今の設定で送る形式。</summary>
+        public static VfxExportFormat SendFormat
+        {
+            get
+            {
+                VfxExportFormat f = Kind == VfxDccKind.Blender ? BlenderFormat : CustomFormat;
+                return f == VfxExportFormat.Fbx && VfxMeshFileExporter.FbxAvailable ? VfxExportFormat.Fbx : VfxExportFormat.Obj;
+            }
+        }
+
         /// <summary>使う Blender。設定が空 or 見つからなければ自動検出。</summary>
         public static string ResolveBlender()
         {
@@ -259,12 +290,13 @@ namespace VfxMeshTool.EditorUI
 
             string exe;
             string args;
-            if (Kind == VfxDccKind.Blender)
+            if (UsesBlenderAdapter)
             {
-                exe = ResolveBlender();
-                if (string.IsNullOrEmpty(exe))
+                // 今の設定を OBJ / FBX で書き出し、Blender 側のスクリプトがそれを読み込む
+                exe = Kind == VfxDccKind.Blender ? ResolveBlender() : CustomPath;
+                if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
                 {
-                    throw new FileNotFoundException("Blender が見つかりません。DCC Link の Executable に blender.exe を指定してください。");
+                    throw new FileNotFoundException("Blender が見つかりません。DCC Link の Application で blender.exe を選んでください。");
                 }
                 string adapter = FindBlenderAdapter();
                 if (resume && HasBlenderSession(name))
@@ -275,7 +307,7 @@ namespace VfxMeshTool.EditorUI
                 }
                 else
                 {
-                    string manifest = WriteBlenderPayload(settings, name);
+                    string manifest = WriteBlenderPayload(settings, name, SendFormat);
                     args = string.Format("--python \"{0}\" -- \"{1}\"", adapter, manifest);
                 }
                 if (!string.IsNullOrEmpty(scriptArgs))
@@ -293,9 +325,9 @@ namespace VfxMeshTool.EditorUI
                 exe = CustomPath;
                 if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
                 {
-                    throw new FileNotFoundException("DCC Link の Executable に起動する DCC を指定してください。");
+                    throw new FileNotFoundException("DCC Link の Application で起動するアプリケーションを選んでください。");
                 }
-                VfxExportFormat format = CustomFormat == VfxExportFormat.Fbx && VfxMeshFileExporter.FbxAvailable ? VfxExportFormat.Fbx : VfxExportFormat.Obj;
+                VfxExportFormat format = SendFormat;
                 string file = Path.Combine(SendFolder, name + "." + VfxMeshFileExporter.Extension(format));
                 if (format == VfxExportFormat.Fbx) VfxMeshFileExporter.ExportFbx(settings, file, name);
                 else VfxMeshFileExporter.ExportObj(settings, file, name);
@@ -310,9 +342,20 @@ namespace VfxMeshTool.EditorUI
             return Process.Start(psi);
         }
 
-        /// <summary>Blender 用: 四角形の OBJ、OBJ に入らないアルファを含む頂点カラー (JSON)、送受信の情報 (manifest) を書く。</summary>
-        public static string WriteBlenderPayload(VfxMeshSettings settings, string name)
+        /// <summary>
+        /// Blender 用に今の設定のメッシュを書き出し、送受信の情報 (manifest) を書く。
+        /// Obj: 四角形の OBJ と、OBJ に入らないアルファを含む頂点カラー (JSON)。Blender 側で付け直す。
+        /// Fbx: バイナリ FBX (三角形、RGBA 頂点カラー)。Blender 側で cm 単位のスケールを焼き込む。
+        /// </summary>
+        public static string WriteBlenderPayload(VfxMeshSettings settings, string name, VfxExportFormat format = VfxExportFormat.Obj)
         {
+            if (format == VfxExportFormat.Fbx && VfxMeshFileExporter.FbxAvailable)
+            {
+                string fbxPath = Path.Combine(SendFolder, name + ".fbx");
+                VfxMeshFileExporter.ExportFbx(settings, fbxPath, name);
+                return WriteManifest(name, fbxPath, "fbx", "");
+            }
+
             VfxMeshData data = VfxMeshBuilder.BuildData(settings);
             List<Color> colors;
             string obj = VfxMeshFileExporter.BuildObj(data, name, out colors);
@@ -332,12 +375,18 @@ namespace VfxMeshTool.EditorUI
             sb.Append("]}");
             string colorPath = Path.Combine(SendFolder, name + ".colors.json");
             File.WriteAllText(colorPath, sb.ToString(), new UTF8Encoding(false));
+            return WriteManifest(name, objPath, "obj", colorPath);
+        }
 
+        private static string WriteManifest(string name, string meshPath, string format, string colorsPath)
+        {
             var manifest = new BlenderManifest
             {
                 name = name,
-                objFile = objPath,
-                colorsFile = colorPath,
+                meshFile = meshPath,
+                format = format,
+                objFile = meshPath, // 古いアダプタ用
+                colorsFile = colorsPath,
                 returnFile = ReturnFullPath(name),
                 blendFile = Path.Combine(SendFolder, name + ".blend"),
             };
@@ -350,6 +399,8 @@ namespace VfxMeshTool.EditorUI
         private class BlenderManifest
         {
             public string name;
+            public string meshFile;
+            public string format;
             public string objFile;
             public string colorsFile;
             public string returnFile;

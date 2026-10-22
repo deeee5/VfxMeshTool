@@ -6,7 +6,9 @@ Unity の VFX Mesh Tool (DCC Link) が Blender をこのスクリプト付きで
     blender <name.blend> --python vfxmesh_blender_bridge.py -- <manifest> --resume 続きから開く
     ... -- <manifest> --autosend                                                   受け取ってすぐ送り返して終了 (テスト用)
 
-- 受け取り: 送られた OBJ (四角形) を読み、OBJ に入らないアルファを含む頂点カラーを colors.json から付け直す。
+- 受け取り: Unity で今の設定を書き出したファイルを読む。
+  OBJ (四角形) のときは、OBJ に入らないアルファを含む頂点カラーを colors.json から付け直す。
+  FBX (三角形、RGBA 頂点カラー) のときは、cm 単位のスケールと回転を頂点に焼き込む。
   そのまま .blend として保存するので、Ctrl+S ですぐ保存できる。
 - 送り返し: 3D ビューのサイドバー (N) > VFX Mesh タブの "Send to Unity"、または保存 (Ctrl+S) のたびに自動で。
   モディファイアとオブジェクトの移動・回転・拡大を焼き込んだメッシュを FBX にして、Unity の戻りフォルダに置く。
@@ -65,15 +67,36 @@ def apply_colors(mesh, colors_path):
 
 def receive(manifest_path):
     m = _load(manifest_path)
+    mesh_file = m.get("meshFile") or m["objFile"]
+    fmt = (m.get("format") or "obj").lower()
     bpy.ops.wm.read_homefile(use_empty=True)
-    bpy.ops.wm.obj_import(filepath=m["objFile"])
-    meshes = [o for o in bpy.context.selected_objects if o.type == "MESH"]
+    if fmt == "fbx":
+        # Unity FBX Exporter は cm 単位で書くので、読み込むとスケール 0.01 のオブジェクトになる。
+        # 編集しやすいように回転・スケールを頂点に焼き込んで、Transform を素の状態にする
+        bpy.ops.import_scene.fbx(filepath=mesh_file)
+        meshes = [o for o in bpy.context.selected_objects if o.type == "MESH"]
+        if meshes:
+            for o in bpy.context.selected_objects:
+                o.select_set(o in meshes)
+            bpy.context.view_layer.objects.active = meshes[0]
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        # メッシュ以外 (空のルートなど) が来ていたら消す
+        for o in list(bpy.context.scene.objects):
+            if o.type != "MESH":
+                bpy.data.objects.remove(o, do_unlink=True)
+    else:
+        bpy.ops.wm.obj_import(filepath=mesh_file)
+        meshes = [o for o in bpy.context.selected_objects if o.type == "MESH"]
     if not meshes:
-        raise RuntimeError("OBJ にメッシュがありません: " + m["objFile"])
+        raise RuntimeError("メッシュがありません: " + mesh_file)
     obj = meshes[0]
     obj.name = m["name"]
     obj.data.name = m["name"]
-    apply_colors(obj.data, m["colorsFile"])
+    if fmt != "fbx" and m.get("colorsFile"):
+        apply_colors(obj.data, m["colorsFile"])
+    elif obj.data.color_attributes:
+        obj.data.color_attributes.active_color = obj.data.color_attributes[0]
+        obj.data.color_attributes.render_color_index = 0
     obj[PROP] = manifest_path
     bpy.context.scene[PROP] = manifest_path
     bpy.context.view_layer.objects.active = obj

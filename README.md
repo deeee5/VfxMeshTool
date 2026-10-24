@@ -79,7 +79,7 @@ The ⋮ menu at the right of each section header has **Reset to Default**, which
 | Range | Unit = 0..1, Extended = -1..2 |
 | Fill / Opacity | Mesh fill in the same mode as the 3D view, and its opacity (to see where vertex alpha lands on the texture) |
 | Reset | Reset of the UV view position |
-| Scroll | Preview of a scrolling texture: Play, U / V speed per second, 0 to rewind. Display only; the mesh UVs do not change (no effect in UserMaterial mode) |
+| Scroll | Preview of a scrolling texture: Play, U / V speed per second (drag the letter left / right to change it), 0 to rewind. Without a texture in Tex / Mat, a built-in test pattern (checker) is scrolled instead. Display only; the mesh UVs do not change (no effect in UserMaterial mode) |
 
 ### Camera controls (4, 7)
 

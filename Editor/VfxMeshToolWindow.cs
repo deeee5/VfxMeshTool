@@ -1973,7 +1973,7 @@ namespace VfxMeshTool.EditorUI
             Texture tex = ResolvePreviewTexture();
             string texInfo = tex != null
                 ? string.Format("{0}  {1}x{2}  {3}", tex.name, tex.width, tex.height, tex.wrapMode)
-                : "No texture (Tex または Mat を設定)";
+                : ScrollActive ? "Test Pattern (Tex 未設定のためスクロール用の内蔵パターン)" : "No texture (Tex または Mat を設定)";
             GUILayout.Label(texInfo, EditorStyles.miniLabel, GUILayout.MinWidth(0f));
         }
 
@@ -2162,10 +2162,14 @@ namespace VfxMeshTool.EditorUI
                 _lastScrollTime = EditorApplication.timeSinceStartup;
             }
 
-            GUILayout.Label("U", EditorStyles.miniLabel, GUILayout.Width(11f));
-            uvScrollSpeed.x = EditorGUILayout.FloatField(uvScrollSpeed.x, EditorStyles.toolbarTextField, GUILayout.Width(42f));
-            GUILayout.Label("V", EditorStyles.miniLabel, GUILayout.Width(11f));
-            uvScrollSpeed.y = EditorGUILayout.FloatField(uvScrollSpeed.y, EditorStyles.toolbarTextField, GUILayout.Width(42f));
+            // ラベル付きの FloatField にして、Unity の数値欄と同じく U / V の文字を左右にドラッグすると値が変わるようにする
+            float labelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 14f;
+            uvScrollSpeed.x = EditorGUILayout.FloatField(new GUIContent("U", "U 方向の毎秒のスクロール量。文字を左右にドラッグで変更"),
+                uvScrollSpeed.x, EditorStyles.toolbarTextField, GUILayout.Width(58f));
+            uvScrollSpeed.y = EditorGUILayout.FloatField(new GUIContent("V", "V 方向の毎秒のスクロール量。文字を左右にドラッグで変更"),
+                uvScrollSpeed.y, EditorStyles.toolbarTextField, GUILayout.Width(58f));
+            EditorGUIUtility.labelWidth = labelWidth;
 
             if (GUILayout.Button(new GUIContent("0", "スクロール位置を先頭に戻す"), EditorStyles.toolbarButton, GUILayout.Width(22f)))
             {
@@ -2194,6 +2198,70 @@ namespace VfxMeshTool.EditorUI
                 }
             }
             return null;
+        }
+
+        /// <summary>UV スクロールを再生中か、先頭以外の位置で止めているか。</summary>
+        private bool ScrollActive
+        {
+            get { return uvScrollPlaying || _scrollOffset != Vector2.zero; }
+        }
+
+        /// <summary>
+        /// プレビューに使うテクスチャ。Tex / Mat のテクスチャが無いときは、スクロール中だけ内蔵のテストパターンを使う
+        /// (白一色では流れているのが見えないので)。
+        /// </summary>
+        private Texture ResolveDisplayTexture()
+        {
+            Texture tex = ResolvePreviewTexture();
+            if (tex == null && ScrollActive)
+            {
+                tex = TestPattern();
+            }
+            return tex;
+        }
+
+        private Texture2D _testPattern;
+
+        /// <summary>
+        /// スクロール確認用の内蔵テストパターン。8×8 のチェッカーに、U 方向で赤、V 方向で緑が増えるグラデーションを重ね、
+        /// 各マスの左下に向きの分かる三角を入れる。Repeat なので継ぎ目なく流れる。
+        /// </summary>
+        private Texture2D TestPattern()
+        {
+            if (_testPattern != null)
+            {
+                return _testPattern;
+            }
+            const int size = 256;
+            const int cells = 8;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, true)
+            {
+                name = "Test Pattern",
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            var px = new Color32[size * size];
+            int cell = size / cells;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    int cx = x / cell, cy = y / cell;
+                    float u = (cx + 0.5f) / cells, v = (cy + 0.5f) / cells;
+                    bool dark = ((cx + cy) & 1) == 0;
+                    float k = dark ? 0.55f : 1f;
+                    // マスの左下の三角 (U / V の向きが分かる目印)
+                    int lx = x % cell, ly = y % cell;
+                    bool mark = lx < cell / 3 && ly < cell / 3 && lx + ly < cell / 3;
+                    var c = mark ? new Color(1f, 1f, 1f) : new Color((0.25f + 0.75f * u) * k, (0.25f + 0.75f * v) * k, 0.35f * k);
+                    px[y * size + x] = c;
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(true, false);
+            _testPattern = tex;
+            return tex;
         }
 
         private void Render3D(Rect rect)
@@ -2291,7 +2359,7 @@ namespace VfxMeshTool.EditorUI
 
         private Material Resolve3DMaterial(out Texture tex)
         {
-            tex = ResolvePreviewTexture();
+            tex = ResolveDisplayTexture();
             if (previewMode == PreviewMode.UserMaterial && userMaterial != null)
             {
                 return userMaterial;
@@ -2362,7 +2430,7 @@ namespace VfxMeshTool.EditorUI
 
         private Material ResolveUvMaterials(out Texture tex)
         {
-            tex = ResolvePreviewTexture();
+            tex = ResolveDisplayTexture();
 
             // 背景: テクスチャをそのまま (ラップモード込みで) 敷く。
             // メッシュの塗り (テクスチャ × 頂点カラー) と区別できるよう少し暗くしておく
@@ -2815,6 +2883,11 @@ namespace VfxMeshTool.EditorUI
 
         private void ReleaseResources()
         {
+            if (_testPattern != null)
+            {
+                DestroyImmediate(_testPattern);
+                _testPattern = null;
+            }
             if (_view3D != null)
             {
                 _view3D.Dispose();

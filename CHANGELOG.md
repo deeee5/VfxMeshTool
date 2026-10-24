@@ -13,6 +13,7 @@ All notable changes to this package are documented here. The format follows [Kee
 - Saved mesh assets carry their generation settings as a hidden sub-asset.
 - UI screenshots in the README, with a numbered layout image matched to a table of window areas.
 - Japanese documentation moved to README.ja.md; README.md is now in English.
+- UV scroll preview: a built-in test pattern is scrolled when no texture is set, and the U / V speed fields can be changed by dragging their labels.
 
 ### Fixed
 - Edit in Blender did not import the mesh when Blender opened with a window (the import ran before Blender's UI was ready).

@@ -106,12 +106,40 @@ public static class VfxCullScrollTest
             File.WriteAllBytes(Path.Combine(dir, "scroll_0.png"), a.EncodeToPNG());
             File.WriteAllBytes(Path.Combine(dir, "scroll_half.png"), b.EncodeToPNG());
             Log.AppendLine("captured scroll_0.png / scroll_half.png");
+
+            // with no texture: plain white while not scrolling, the built-in test pattern (which visibly moves) while scrolling
+            window.SetPreviewOptions(VfxMeshToolWindow.PreviewMode.Textured, null, null, false, false,
+                VfxMeshToolWindow.UvViewRange.Unit);
+            window.SetCullAndScroll(CullMode.Off, Vector2.zero);
+            Color32[] still = window.CaptureStatic3D(W, H).GetPixels32();
+            window.SetCullAndScroll(CullMode.Off, new Vector2(0.25f, 0f));
+            Texture2D movedTex = window.CaptureStatic3D(W, H);
+            Color32[] moved = movedTex.GetPixels32();
+            window.SetCullAndScroll(CullMode.Off, new Vector2(0.375f, 0f));
+            Color32[] moved2 = window.CaptureStatic3D(W, H).GetPixels32();
+            int distinctStill = Distinct(still), distinctMoved = Distinct(moved), diff = 0;
+            for (int i = 0; i < moved.Length; i++)
+            {
+                if (Mathf.Abs(moved[i].r - moved2[i].r) + Mathf.Abs(moved[i].g - moved2[i].g) + Mathf.Abs(moved[i].b - moved2[i].b) > 40) diff++;
+            }
+            Log.AppendLine(string.Format("no texture: colours still={0} scrolling={1}, pixels changed between two offsets={2}", distinctStill, distinctMoved, diff));
+            Expect(distinctMoved > distinctStill * 3, "no test pattern shown while scrolling without a texture");
+            Expect(diff > litA * 0.2f, "the test pattern does not move with the scroll offset");
+            File.WriteAllBytes(Path.Combine(dir, "scroll_testpattern.png"), movedTex.EncodeToPNG());
         }
         finally
         {
             Object.DestroyImmediate(window);
         }
         Finish();
+    }
+
+    /// <summary>Number of distinct colours (quantised to 1/16), to tell a flat image from a patterned one.</summary>
+    private static int Distinct(Color32[] px)
+    {
+        var set = new System.Collections.Generic.HashSet<int>();
+        foreach (Color32 c in px) set.Add(((c.r >> 4) << 8) | ((c.g >> 4) << 4) | (c.b >> 4));
+        return set.Count;
     }
 
     /// <summary>Pixels that differ clearly from the preview background.</summary>

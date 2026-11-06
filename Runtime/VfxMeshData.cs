@@ -182,7 +182,14 @@ namespace VfxMeshTool
             mesh.SetVertices(positions);
             mesh.SetNormals(normals);
             mesh.SetUVs(0, uv);
-            mesh.SetColors(colors);
+            // 頂点カラーは Color32 (UNorm8 x 4) で持たせる。List<Color> のまま渡すと Float32 x 4 になり、
+            // Particle System の Mesh モードがそれを 8bit として読むので色が壊れる (白 1.0f = 00 00 80 3F → 暗い青)
+            var colors32 = new List<Color32>(colors.Count);
+            foreach (Color c in colors)
+            {
+                colors32.Add(c);
+            }
+            mesh.SetColors(colors32);
             mesh.SetTriangles(triangles, 0, true);
 
             if (recalculateNormals)

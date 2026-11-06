@@ -17,6 +17,8 @@ All notable changes to this package are documented here. The format follows [Kee
 
 ### Fixed
 - Edit in Blender did not import the mesh when Blender opened with a window (the import ran before Blender's UI was ready).
+- Meshes turned blue-black in a Particle System in Mesh mode. Vertex colours are now saved as Color32 (UNorm8 x 4) instead of Float32 x 4; values outside 0-1 are clamped.
+- Assets > VFX Mesh Tool > Convert Vertex Colors to Color32 converts existing .asset meshes in the selection, changing only their vertex colours.
 
 ### Removed
 - The "Tex 未設定" notice in the 3D view.

@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | ① | プリセットバー | 設定一式の保存・読み込み (`VfxMeshPreset` アセット)。Save As / Apply / Reload |
 | ② | メッシュ設定パネル | 形状・Transform・頂点分布・UV・頂点カラー・書き出し・DCC 連携の設定項目。ここの変更がメッシュと書き出し結果に反映される (Undo 対応) |
-| ③ | 3D ビューツールバー | 3D プレビューの表示設定。表示モード・プレビュー用テクスチャ / マテリアル・ワイヤーフレーム・陰影・カリング・グリッド・背景色・Scene ビュー表示・カメラ (Frame / Reset / Home)・表示設定の初期化 (Default) |
+| ③ | 3D ビューツールバー | 3D プレビューの表示設定。表示モード・プレビュー用テクスチャ / マテリアル・サンプルテクスチャ・テクスチャの Tiling / Offset・ワイヤーフレーム・陰影・カリング・グリッド・背景色・Scene ビュー表示・カメラ (Frame / Reset / Home)・表示設定の初期化 (Default) |
 | ④ | 3D プレビュー | 生成したメッシュの立体表示。マウスでカメラ操作 |
 | ⑤ | メッシュ情報 | 頂点数・三角形数・サイズ (幅 × 高さ × 奥行き) |
 | ⑥ | UV ビューツールバー | UV プレビューの表示設定。表示範囲・塗りつぶし・不透明度・表示位置のリセット・UV スクロール再生 |
@@ -43,7 +43,7 @@
 
 ### メッシュ設定パネル (②) のセクション
 
-セクション見出しの左端の色帯が、そのセクションが変えるものを表す。
+セクションは 1 枚ずつのカードになっている。見出しの帯 (とカード左端の線) の色が、そのセクションが変えるものを表す。
 
 | 色 | セクション | 内容 |
 | --- | --- | --- |
@@ -65,12 +65,14 @@
 | --- | --- |
 | 表示モード | Textured (テクスチャ × 頂点カラー) / TexturedAdditive (加算) / VertexRGB / VertexAlpha / UvChecker (チェッカー + UV を色で表示) / Normals / UserMaterial (Mat に入れた自分のマテリアル) |
 | Tex / Mat | プレビュー用のテクスチャとマテリアル。Tex が空なら Mat の `_MainTex` / `_BaseMap` を使う |
+| Samples | 同梱の[サンプルテクスチャ](#サンプルテクスチャ)を Tex に入れる (None で空にする) |
+| Tiling / Offset | プレビューのテクスチャのタイリングとオフセット。マテリアルの Tiling / Offset と同じ働き (X / Y の文字を左右にドラッグで変更)。Scroll と足し合わせて効く。表示だけで、メッシュの UV も Mat のアセットも変わらない。UV セクションの Tiling / Offset (メッシュの UV を書き換える) とは別物。UserMaterial モードでは Mat の複製に、`_ST` を持つすべてのテクスチャのマテリアル側の Tiling / Offset に重ねて効かせる。`_ST` を使わずにサンプリングするシェーダー (Tiling And Offset ノードの無い Shader Graph など) には効かない |
 | Wire / Shade / Grid | ワイヤーフレーム・視線方向の陰影・床のグリッド |
 | Cull | 描画しない面。Off = 両面、Back = 裏面を消す、Front = 表面を消して内側だけ見る |
 | BG | 背景色 |
 | Scene / Handles | Scene ビューへの生成メッシュの表示 / Path の制御点ハンドル (Path の Points のときだけ) |
 | Frame / Reset / Home | メッシュ全体が収まる位置へ寄せる (F キー) / ホーム位置に戻す (R キー) / ホーム位置の登録と初期化 |
-| Default | 表示の設定の初期化 (背景色・表示モード・UV ビュー・スクロール・3D / UV の分割比・カメラ)。Tex / Mat とメッシュの設定はそのまま |
+| Default | 表示の設定の初期化 (背景色・表示モード・UV ビュー・スクロール・Tiling / Offset・3D / UV の分割比・カメラ)。Tex / Mat とメッシュの設定はそのまま |
 
 ### UV ビューツールバー (⑥)
 
@@ -79,7 +81,7 @@
 | 表示範囲 | Unit = 0..1、Extended = -1..2 |
 | Fill / Opacity | 3D と同じ表示モードでのメッシュの塗りつぶしとその不透明度 (頂点アルファがテクスチャのどこに乗るかの確認用) |
 | Reset | UV ビューの表示位置のリセット |
-| Scroll | テクスチャを流したときの見え方の確認。Play で再生、U / V が毎秒のスクロール量 (文字を左右にドラッグで変更)、0 で先頭へ。Tex / Mat にテクスチャが無いときは、スクロール中だけ内蔵のテストパターン (チェッカー) を流す。表示だけでメッシュの UV は変わらない (UserMaterial モードでは効かない) |
+| Scroll | テクスチャを流したときの見え方の確認。Play で再生、U / V が毎秒のスクロール量 (文字を左右にドラッグで変更)、0 で先頭へ。Tex / Mat にテクスチャが無いときは、スクロール中と Tiling / Offset を変えている間だけ内蔵のテストパターン (チェッカー) を出す。表示だけでメッシュの UV は変わらない。UserMaterial モードでは Tiling / Offset と同じく `_ST` を使うテクスチャを動かす |
 
 ### カメラ操作 (④⑦)
 
@@ -93,6 +95,20 @@
 
 - カメラはワールド座標で固定。メッシュのサイズに追従しないので、形状を大きくすればそのぶん大きく見える (実寸の変化がそのまま見える)。床のグリッドの間隔もカメラ距離だけで決まる。
 - UV プレビューはドラッグで平行移動、ホイールでズーム、UV ビューツールバーの Reset で元に戻る。背景のテクスチャはラップモード (Repeat / Clamp) がそのまま反映される。
+
+### サンプルテクスチャ
+
+`Textures/` に、このパッケージ用に作ったグレースケールのテクスチャが 12 枚入っている (プログラムで生成したもので第三者の素材は含まない。ライセンスはコードと同じ MIT)。3D ビューツールバーの **Samples** から選べるほか、自分のマテリアルにもそのまま使える。
+
+| 種類 | テクスチャ | サイズ / ラップ |
+| --- | --- | --- |
+| Noise | Cell, Cloud, Crack, Fine, Wispy | 512²、継ぎ目なし (Repeat) |
+| Streak | Sharp, Soft | 512²、継ぎ目なし (Repeat) |
+| Mask | Circle, EdgeFade, FadeV, Ring, Spark (アルファ付き) | 256²、Clamp |
+
+![12 枚のサンプルテクスチャ](Docs~/sample_textures.png)
+
+`Tools~/generate_sample_textures.py` で固定シードから作り直せる (numpy と Pillow が必要)。`Textures/` に PNG を足すと Samples メニューに出る。
 
 ## 形状 (Shape)
 
@@ -279,6 +295,10 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxImportTest | Mesh Asset 欄 (設定の復元・Imported 形状・FBX 内のメッシュ・Auto Write・元のアセットへの上書き) |
 | VfxDccLinkTest | Unity → Blender → Unity の往復 (Blender が必要) |
 | VfxTopCapTest | Revolve の Top Cap Curvature |
+| VfxCullScrollTest | Cull と UV スクロールのプレビュー |
+| VfxTexTransformTest | プレビューの Tiling / Offset (Scroll との併用・UV ビュー・アセットを変えない Mat モード・Default) |
+| VfxSampleTextureTest | サンプルテクスチャ (パッケージのフォルダからの検索・インポート設定) |
+| VfxColorFormatTest | 頂点カラーの Color32 保存・古いアセットの変換・Particle System での描画 |
 
 `VfxMeshToolBatchTestUrp.cs` は URP が入っているプロジェクト用。
 
@@ -299,10 +319,13 @@ VfxMeshTool/
     VfxMeshFileExporter.cs … OBJ / FBX 書き出し
     VfxDccLink.cs          … DCC 連携 (送信・起動・戻りフォルダの監視・差し替え)
     DccAdapters/vfxmesh_blender_bridge.py … Blender 側 (受け取り・Send to Unity・保存時の自動送信)
+    VfxMeshColorFormat.cs  … 頂点カラーの Color32 への変換
     VfxMeshPresetEditor.cs
     Shaders/VfxMeshPreview.shader, VfxMeshWire.shader
+  Textures/ … サンプルテクスチャ
   Docs~/   … README の画像
   Tests~/  … バッチテスト
+  Tools~/  … サンプルテクスチャの生成スクリプト
 ```
 
 ## 既知の制限

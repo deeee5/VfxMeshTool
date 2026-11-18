@@ -14,6 +14,8 @@ Shader "Hidden/VfxMeshTool/Preview"
         _DigitScale ("Digit Scale", Float) = 0.34
         // UV スクロールのプレビュー用。メッシュの UV は変えず、サンプリング位置だけずらす
         _ScrollOffset ("Scroll Offset", Vector) = (0,0,0,0)
+        // テクスチャの Tiling (xy) / Offset (zw)。テクスチャのサンプリングにだけ効く (UV チェッカーには効かない)
+        _TexST ("Texture Tiling Offset", Vector) = (1,1,0,0)
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src Blend", Float) = 5
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst Blend", Float) = 10
@@ -44,6 +46,7 @@ Shader "Hidden/VfxMeshTool/Preview"
             float _CheckerScale;
             float _DigitScale;
             float4 _ScrollOffset;
+            float4 _TexST;
 
             struct appdata
             {
@@ -60,6 +63,7 @@ Shader "Hidden/VfxMeshTool/Preview"
                 float4 color : COLOR;
                 float3 worldNormal : TEXCOORD1;
                 float3 viewDir : TEXCOORD2;
+                float2 texUv : TEXCOORD3;
             };
 
             v2f vert (appdata v)
@@ -67,6 +71,8 @@ Shader "Hidden/VfxMeshTool/Preview"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv + _ScrollOffset.xy;
+                // マテリアルの Tiling / Offset と同じ順 (uv * tiling + offset) のあとにスクロールを足す
+                o.texUv = v.uv * _TexST.xy + _TexST.zw + _ScrollOffset.xy;
                 o.color = v.color;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.viewDir = WorldSpaceViewDir(v.vertex);
@@ -109,7 +115,7 @@ Shader "Hidden/VfxMeshTool/Preview"
                 float4 col = float4(1, 1, 1, 1);
                 if (mode == 0)
                 {
-                    col = tex2D(_MainTex, i.uv) * i.color;
+                    col = tex2D(_MainTex, i.texUv) * i.color;
                 }
                 else if (mode == 1)
                 {

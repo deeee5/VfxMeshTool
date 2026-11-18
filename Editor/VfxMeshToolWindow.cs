@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -76,6 +76,9 @@ namespace VfxMeshTool.EditorUI
         // UV スクロールのプレビュー。メッシュの UV は変えず、表示だけ動かす
         [SerializeField] private bool uvScrollPlaying;
         [SerializeField] private Vector2 uvScrollSpeed = new Vector2(0.25f, 0f);
+        // プレビューのテクスチャの Tiling / Offset。メッシュの UV もマテリアルアセットも変えず、表示だけに効かせる
+        [SerializeField] private Vector2 texTiling = Vector2.one;
+        [SerializeField] private Vector2 texOffset = Vector2.zero;
         [SerializeField] private Color backgroundColor = DefaultBackgroundColor;
         [SerializeField] private UvViewRange uvViewRange = UvViewRange.Unit;
         [SerializeField] private bool uvShowFill = true;
@@ -119,6 +122,8 @@ namespace VfxMeshTool.EditorUI
         private Material _previewMat;
         private Material _uvFillMat;
         private Material _uvBgMat;
+        /// <summary>Mat のプレビュー用の複製。Tiling / Offset / Scroll はこちらにだけ入れ、元のアセットは書き換えない。</summary>
+        private Material _userMatPreview;
         private Material _wireMat;
         private Material _gridMat;
         private float _gridStep = -1f;
@@ -397,11 +402,31 @@ namespace VfxMeshTool.EditorUI
             Rect line = new Rect(row.x + textW + 6f, row.y + row.height * 0.5f, row.width - textW - 6f, 1f);
             if (line.width > 8f)
             {
-                EditorGUI.DrawRect(line, EditorGUIUtility.isProSkin
-                    ? new Color(1f, 1f, 1f, 0.18f)
-                    : new Color(0f, 0f, 0f, 0.18f));
+                EditorGUI.DrawRect(line, RuleColor(SubRuleStrength));
             }
             GUILayout.Space(2f);
+        }
+
+        // ---- rules (罫線) ----
+        // セクションの境目はカード (下の section cards) で見せる。線はツールバーのまとまりの境目 (縦線) とサブ見出しに使う
+
+        private const float ToolbarRuleStrength = 0.32f;
+        private const float SubRuleStrength = 0.24f;
+
+        /// <summary>罫線の色。ダークテーマでは白、ライトテーマでは黒を半透明で重ねるので、どちらのテーマでも見える。</summary>
+        private static Color RuleColor(float strength)
+        {
+            return EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, strength) : new Color(0f, 0f, 0f, strength);
+        }
+
+        /// <summary>ツールバーの中のまとまりの境目に引く縦線。</summary>
+        private static void ToolbarSeparator()
+        {
+            Rect r = GUILayoutUtility.GetRect(9f, 18f, GUILayout.Width(9f));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(new Rect(r.x + 4f, r.y + 3f, 1f, r.height - 6f), RuleColor(ToolbarRuleStrength));
+            }
         }
 
         // ---- section headers ----
@@ -414,8 +439,78 @@ namespace VfxMeshTool.EditorUI
         private static readonly Color ExportColor = new Color(0.75f, 0.5f, 1f);
         private static readonly Color PreviewColor = new Color(0.6f, 0.6f, 0.6f);
 
+        private const float SectionHeaderHeight = 24f;
+        private static GUIStyle _sectionHeaderStyle;
+
         /// <summary>
-        /// 左端に種類の色帯を付けたフォールドアウト見出し。EndFoldoutHeaderGroup は呼び出し側で閉じる。
+        /// セクション見出しの文字。通常の文字より 2 段大きい太字のフォールドアウト。背景は描かないので、
+        /// 下に敷いたセクションの色の帯がそのまま見える。
+        /// </summary>
+        private static GUIStyle SectionHeaderStyle
+        {
+            get
+            {
+                if (_sectionHeaderStyle == null)
+                {
+                    int baseSize = EditorStyles.foldout.fontSize > 0 ? EditorStyles.foldout.fontSize : 12;
+                    _sectionHeaderStyle = new GUIStyle(EditorStyles.foldout)
+                    {
+                        fontSize = baseSize + 2,
+                        fontStyle = FontStyle.Bold,
+                        alignment = TextAnchor.MiddleLeft,
+                    };
+                }
+                return _sectionHeaderStyle;
+            }
+        }
+
+        // ---- section cards ----
+        // セクションを 1 枚のカードとして見せる: 見出しは種類の色を重ねた帯 + 大きめの太字、中身はウィンドウより一段沈めた
+        // (ライトテーマでは一段明るい) 背景、左端に種類の色のライン。カードの間は少し空ける。
+
+        private static GUIStyle _cardStyle;
+        private static Texture2D _cardTex;
+        private static bool _cardForProSkin;
+
+        private static Color CardColor
+        {
+            get { return EditorGUIUtility.isProSkin ? new Color(0.165f, 0.165f, 0.175f, 1f) : new Color(0.85f, 0.85f, 0.86f, 1f); }
+        }
+
+        private static Color HeaderBaseColor
+        {
+            get { return EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.265f, 1f) : new Color(0.9f, 0.9f, 0.91f, 1f); }
+        }
+
+        /// <summary>カードの中身の背景。テーマが変わったら作り直す。</summary>
+        private static GUIStyle CardStyle
+        {
+            get
+            {
+                if (_cardStyle == null || _cardTex == null || _cardForProSkin != EditorGUIUtility.isProSkin)
+                {
+                    if (_cardTex == null)
+                    {
+                        _cardTex = new Texture2D(1, 1, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+                    }
+                    _cardTex.SetPixel(0, 0, CardColor);
+                    _cardTex.Apply();
+                    _cardForProSkin = EditorGUIUtility.isProSkin;
+                    _cardStyle = new GUIStyle
+                    {
+                        padding = new RectOffset(8, 4, 2, 8),
+                        margin = new RectOffset(0, 0, 0, 0),
+                    };
+                    _cardStyle.normal.background = _cardTex;
+                }
+                return _cardStyle;
+            }
+        }
+
+        private Color _sectionTag;
+
+        /// <summary>
+        /// セクション見出し (カードの上端)。EndSection で閉じる。
         /// reset を渡すと見出し右端の ⋮ メニューに「Reset to Default」が出る。
         /// </summary>
         private bool BeginSection(bool fold, string title, Color tag, string tooltip = null, Action<VfxMeshSettings, VfxMeshSettings> reset = null)
@@ -430,13 +525,55 @@ namespace VfxMeshTool.EditorUI
                     m.DropDown(r);
                 };
             }
-            fold = EditorGUILayout.BeginFoldoutHeaderGroup(fold, new GUIContent(title, tooltip), null, menu);
+            GUILayout.Space(6f);
+            Rect r = GUILayoutUtility.GetRect(1f, SectionHeaderHeight, GUILayout.ExpandWidth(true));
             if (Event.current.type == EventType.Repaint)
             {
-                Rect r = GUILayoutUtility.GetLastRect();
-                EditorGUI.DrawRect(new Rect(r.x, r.y + 1f, 4f, r.height - 2f), tag);
+                Color band = tag;
+                band.a = EditorGUIUtility.isProSkin ? 0.42f : 0.5f;
+                EditorGUI.DrawRect(r, HeaderBaseColor);
+                EditorGUI.DrawRect(r, band);
+                EditorGUI.DrawRect(new Rect(r.x, r.y, 4f, r.height), tag);
+            }
+            _sectionTag = tag;
+            // 見出しは自前で描く (Unity のフォールドアウト見出しは不透明な背景を描くので、下に敷いた帯が隠れる)
+            var menuRect = new Rect(r.xMax - 22f, r.y + (r.height - 18f) * 0.5f, 18f, 18f);
+            if (menu != null)
+            {
+                GUIContent icon = EditorGUIUtility.IconContent("_Menu");
+                if (icon == null || icon.image == null)
+                {
+                    icon = new GUIContent("⋮");
+                }
+                icon = new GUIContent(icon) { tooltip = "Reset to Default" };
+                if (GUI.Button(menuRect, icon, EditorStyles.iconButton))
+                {
+                    menu(menuRect);
+                }
+            }
+            var foldRect = new Rect(r.x + 8f, r.y + (r.height - 20f) * 0.5f, r.width - 8f - (menu != null ? 26f : 4f), 20f);
+            fold = EditorGUI.Foldout(foldRect, fold, new GUIContent(title, tooltip), true, SectionHeaderStyle);
+            if (fold)
+            {
+                EditorGUILayout.BeginVertical(CardStyle);
             }
             return fold;
+        }
+
+        /// <summary>BeginSection と対になる。開いているときはカードを閉じ、左端に種類の色のラインを引く。</summary>
+        private void EndSection(bool fold)
+        {
+            if (fold)
+            {
+                EditorGUILayout.EndVertical();
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Rect card = GUILayoutUtility.GetLastRect();
+                    Color c = _sectionTag;
+                    c.a = 0.9f;
+                    EditorGUI.DrawRect(new Rect(card.x, card.y, 3f, card.height), c);
+                }
+            }
         }
 
         /// <summary>
@@ -795,7 +932,7 @@ namespace VfxMeshTool.EditorUI
                 }
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldShape);
         }
 
         /// <summary>
@@ -1056,7 +1193,7 @@ namespace VfxMeshTool.EditorUI
                 Field("generateTangents", "Generate Tangents", "ノーマルマップ用");
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldTransform);
         }
 
         /// <summary>
@@ -1161,7 +1298,7 @@ namespace VfxMeshTool.EditorUI
                 Field("uv.swapUV", "Swap UV");
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldUv);
         }
 
         private static bool IsPlanar(int projection)
@@ -1237,7 +1374,7 @@ namespace VfxMeshTool.EditorUI
                 Field("vertexColor.randomSeed", "Random Seed");
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldColor);
         }
 
         private void DrawChannelRow(string label, SerializedProperty channel)
@@ -1302,7 +1439,7 @@ namespace VfxMeshTool.EditorUI
                 DrawDistributionPresets("distributionV", "V:", false);
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldAdvanced);
         }
 
         // ---- preview (表示のみ。右側のツールバーから操作する) ----
@@ -1319,7 +1456,7 @@ namespace VfxMeshTool.EditorUI
         }
 
         /// <summary>
-        /// 表示の設定をすべて初期値に戻す (背景色・表示モード・Wire / Shade / Cull / Grid・UV ビュー・スクロール・
+        /// 表示の設定をすべて初期値に戻す (背景色・表示モード・Wire / Shade / Cull / Grid・UV ビュー・スクロール・Tiling / Offset・
         /// 分割比・カメラとホーム位置・Scene 表示)。Tex / Mat に入れたアセットは残す。メッシュの設定には触らない。Undo 対応。
         /// </summary>
         private void ResetPreviewToDefault()
@@ -1337,6 +1474,8 @@ namespace VfxMeshTool.EditorUI
             uvScrollPlaying = false;
             uvScrollSpeed = new Vector2(0.25f, 0f);
             _scrollOffset = Vector2.zero;
+            texTiling = Vector2.one;
+            texOffset = Vector2.zero;
             splitRatio = DefaultSplitRatio;
             showPathHandles = true;
             showSceneMesh = true;
@@ -1456,7 +1595,7 @@ namespace VfxMeshTool.EditorUI
                 }
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldExport);
         }
 
         // ---- DCC link ----
@@ -1531,7 +1670,7 @@ namespace VfxMeshTool.EditorUI
                 }
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EndSection(foldDcc);
         }
 
         /// <summary>
@@ -1827,11 +1966,12 @@ namespace VfxMeshTool.EditorUI
         private void DrawPreviewColumn(float columnWidth)
         {
             // 幅が足りないときはツールバーを 2 段に折り返して、項目が隠れないようにする
-            bool wrap3D = columnWidth < 960f;
-            bool wrapUv = columnWidth < 650f;
-            int toolbarRows = 4 + (wrap3D ? 1 : 0) + (wrapUv ? 1 : 0);
+            bool wrap3D = columnWidth < 1390f;
+            bool wrapTex = columnWidth < 890f;
+            bool wrapUv = columnWidth < 670f;
+            int toolbarRows = 4 + (wrap3D ? 1 : 0) + (wrapTex ? 1 : 0) + (wrapUv ? 1 : 0);
 
-            DrawPreviewToolbar(wrap3D);
+            DrawPreviewToolbar(wrap3D, wrapTex);
 
             float available = position.height - 21f * toolbarRows - SplitterSize;
             float h3d = Mathf.Clamp(available * splitRatio, MinPreviewHeight,
@@ -1857,19 +1997,35 @@ namespace VfxMeshTool.EditorUI
             DrawStatusBar(columnWidth);
         }
 
-        private void DrawPreviewToolbar(bool wrap)
+        private void DrawPreviewToolbar(bool wrap, bool wrapTex)
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 ToolbarTag("3D View", "このツールバーは 3D プレビューの表示設定だけ。メッシュも書き出す値も変わらない");
                 EditorGUILayout.PropertyField(P("previewMode"), GUIContent.none, GUILayout.MinWidth(80f), GUILayout.MaxWidth(130f));
+                ToolbarSeparator();
                 GUILayout.Label("Tex", EditorStyles.miniLabel, GUILayout.Width(24f));
                 EditorGUILayout.PropertyField(P("previewTexture"), GUIContent.none, GUILayout.MinWidth(50f), GUILayout.MaxWidth(120f));
+                DrawSampleTextureMenu();
                 GUILayout.Label("Mat", EditorStyles.miniLabel, GUILayout.Width(26f));
                 EditorGUILayout.PropertyField(P("userMaterial"), GUIContent.none, GUILayout.MinWidth(50f), GUILayout.MaxWidth(120f));
+                if (!wrapTex)
+                {
+                    ToolbarSeparator();
+                    DrawTexTransformControls();
+                }
                 if (!wrap)
                 {
+                    ToolbarSeparator();
                     DrawPreviewToolbarTail();
+                }
+            }
+            if (wrapTex)
+            {
+                using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+                {
+                    DrawTexTransformControls();
+                    GUILayout.FlexibleSpace();
                 }
             }
             if (wrap)
@@ -1879,6 +2035,111 @@ namespace VfxMeshTool.EditorUI
                     DrawPreviewToolbarTail();
                 }
             }
+        }
+
+        /// <summary>
+        /// プレビューのテクスチャの Tiling / Offset。Tex と Mat の横に置き、左の UV セクション (メッシュの UV を書き換える) と分ける。
+        /// </summary>
+        private void DrawTexTransformControls()
+        {
+            GUILayout.Label(new GUIContent("Tiling", "プレビューのテクスチャを繰り返す回数。メッシュの UV とマテリアルアセットは変わらない"),
+                EditorStyles.miniLabel, GUILayout.Width(34f));
+            ToolbarVector2(P("texTiling"), "X 方向の繰り返し回数。文字を左右にドラッグで変更", "Y 方向の繰り返し回数。文字を左右にドラッグで変更");
+            GUILayout.Label(new GUIContent("Offset", "プレビューのテクスチャをずらす量。メッシュの UV とマテリアルアセットは変わらない"),
+                EditorStyles.miniLabel, GUILayout.Width(38f));
+            ToolbarVector2(P("texOffset"), "X 方向のずらし量。文字を左右にドラッグで変更", "Y 方向のずらし量。文字を左右にドラッグで変更");
+        }
+
+        /// <summary>ツールバー用の X / Y 欄。X / Y の文字を左右にドラッグすると値が変わる。</summary>
+        private static void ToolbarVector2(SerializedProperty property, string tipX, string tipY)
+        {
+            float labelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 12f;
+            Vector2 v = property.vector2Value;
+            EditorGUI.BeginChangeCheck();
+            v.x = EditorGUILayout.FloatField(new GUIContent("X", tipX), v.x, EditorStyles.toolbarTextField, GUILayout.Width(52f));
+            v.y = EditorGUILayout.FloatField(new GUIContent("Y", tipY), v.y, EditorStyles.toolbarTextField, GUILayout.Width(52f));
+            if (EditorGUI.EndChangeCheck())
+            {
+                property.vector2Value = v;
+            }
+            EditorGUIUtility.labelWidth = labelWidth;
+        }
+
+        /// <summary>Tex に同梱のサンプルテクスチャを入れるメニュー。</summary>
+        private void DrawSampleTextureMenu()
+        {
+            var label = new GUIContent("Samples", "同梱のサンプルテクスチャを Tex に入れる");
+            Rect rect = GUILayoutUtility.GetRect(label, EditorStyles.toolbarDropDown, GUILayout.Width(64f));
+            if (!EditorGUI.DropdownButton(rect, label, FocusType.Passive, EditorStyles.toolbarDropDown))
+            {
+                return;
+            }
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("None"), previewTexture == null, () => SetPreviewTexture(null));
+            List<Texture2D> samples = FindSampleTextures();
+            if (samples.Count > 0)
+            {
+                menu.AddSeparator("");
+            }
+            foreach (Texture2D sample in samples)
+            {
+                Texture2D t = sample;
+                menu.AddItem(new GUIContent(SampleMenuPath(t.name)), previewTexture == t, () => SetPreviewTexture(t));
+            }
+            menu.DropDown(rect);
+        }
+
+        private void SetPreviewTexture(Texture texture)
+        {
+            Undo.RecordObject(this, "Set Preview Texture");
+            previewTexture = texture;
+            _so.Update();
+            Repaint();
+        }
+
+        /// <summary>
+        /// パッケージの Textures フォルダのテクスチャ一覧。フォルダの場所はこのスクリプトから求めるので、
+        /// Packages / Assets のどちらに置かれていても動く。PNG を足せばそのまま一覧に出る。
+        /// </summary>
+        public List<Texture2D> FindSampleTextures()
+        {
+            var result = new List<Texture2D>();
+            string script = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this));
+            if (string.IsNullOrEmpty(script))
+            {
+                return result;
+            }
+            // <package>/Editor/VfxMeshToolWindow.cs → <package>/Textures
+            string package = System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(script)).Replace('\\', '/');
+            string folder = package + "/Textures";
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                return result;
+            }
+            var paths = new List<string>();
+            foreach (string guid in AssetDatabase.FindAssets("t:Texture2D", new[] { folder }))
+            {
+                paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+            }
+            paths.Sort(StringComparer.OrdinalIgnoreCase);
+            foreach (string path in paths)
+            {
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (texture != null)
+                {
+                    result.Add(texture);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>"T_Noise_Cloud" → "Noise/Cloud"。T_種類_名前 の形でなければ名前のまま。</summary>
+        private static string SampleMenuPath(string textureName)
+        {
+            string name = textureName.StartsWith("T_", StringComparison.Ordinal) ? textureName.Substring(2) : textureName;
+            int split = name.IndexOf('_');
+            return split > 0 ? name.Substring(0, split) + "/" + name.Substring(split + 1) : name;
         }
 
         private void DrawPreviewToolbarTail()
@@ -1908,11 +2169,13 @@ namespace VfxMeshTool.EditorUI
                 EditorGUI.DrawRect(new Rect(sw.x, sw.y, 1f, sw.height), edge);
                 EditorGUI.DrawRect(new Rect(sw.xMax - 1f, sw.y, 1f, sw.height), edge);
             }
+            ToolbarSeparator();
             ToolbarToggle(P("showSceneMesh"), "Scene", "Scene ビューにも生成メッシュを描く");
             if (settings.shape == VfxShapeType.Path && settings.pathSource == VfxPathSource.Points)
             {
                 ToolbarToggle(P("showPathHandles"), "Handles", "Scene ビューにパスの制御点ハンドルを出す");
             }
+            ToolbarSeparator();
             if (GUILayout.Button(new GUIContent("Frame", "メッシュ全体が収まる位置へ一度だけ寄せる (F キー)"), EditorStyles.toolbarButton))
             {
                 FrameMesh(_lastPreviewAspect);
@@ -1932,6 +2195,7 @@ namespace VfxMeshTool.EditorUI
                 m.DropDown(homeRect);
             }
             GUILayout.FlexibleSpace();
+            ToolbarSeparator();
             if (GUILayout.Button(new GUIContent("Default", "表示の設定 (背景色・表示モード・UV ビュー・カメラなど) を初期値に戻す。メッシュの設定は変わらない"), EditorStyles.toolbarButton))
             {
                 ResetPreviewToDefault();
@@ -1944,6 +2208,7 @@ namespace VfxMeshTool.EditorUI
             {
                 ToolbarTag("UV View", "このツールバーは UV プレビューの表示設定だけ。メッシュの UV を変えるのは左の UV セクション");
                 EditorGUILayout.PropertyField(P("uvViewRange"), GUIContent.none, GUILayout.MinWidth(60f), GUILayout.MaxWidth(90f));
+                ToolbarSeparator();
                 ToolbarToggle(P("uvShowFill"), "Fill", "UV 空間にメッシュを塗りつぶし表示 (3D と同じ表示モード)");
                 GUILayout.Label("Opacity", EditorStyles.miniLabel, GUILayout.Width(46f));
                 EditorGUILayout.Slider(P("uvFillOpacity"), 0f, 1f, GUIContent.none, GUILayout.MinWidth(50f), GUILayout.MaxWidth(120f));
@@ -1954,6 +2219,7 @@ namespace VfxMeshTool.EditorUI
                 }
                 if (!wrap)
                 {
+                    ToolbarSeparator();
                     DrawUvToolbarTail();
                 }
             }
@@ -1973,7 +2239,7 @@ namespace VfxMeshTool.EditorUI
             Texture tex = ResolvePreviewTexture();
             string texInfo = tex != null
                 ? string.Format("{0}  {1}x{2}  {3}", tex.name, tex.width, tex.height, tex.wrapMode)
-                : ScrollActive ? "Test Pattern (Tex 未設定のためスクロール用の内蔵パターン)" : "No texture (Tex または Mat を設定)";
+                : ScrollActive ? "Test Pattern (Tex 未設定のため内蔵パターン)" : "No texture (Tex または Mat を設定)";
             GUILayout.Label(texInfo, EditorStyles.miniLabel, GUILayout.MinWidth(0f));
         }
 
@@ -2200,10 +2466,58 @@ namespace VfxMeshTool.EditorUI
             return null;
         }
 
-        /// <summary>UV スクロールを再生中か、先頭以外の位置で止めているか。</summary>
+        /// <summary>UV スクロールを再生中か、先頭以外の位置で止めているか、Tiling / Offset を変えているか。</summary>
         private bool ScrollActive
         {
-            get { return uvScrollPlaying || _scrollOffset != Vector2.zero; }
+            get { return uvScrollPlaying || _scrollOffset != Vector2.zero || TexTransformChanged; }
+        }
+
+        private bool TexTransformChanged
+        {
+            get { return texTiling != Vector2.one || texOffset != Vector2.zero; }
+        }
+
+        /// <summary>
+        /// Mat モードで描くマテリアル。Tiling / Offset / Scroll がすべて初期値ならアセットをそのまま使う。
+        /// そうでなければ複製に入れて返し、元のマテリアルアセットは書き換えない。
+        /// _ST を持つテクスチャすべてに、マテリアル自身の Tiling / Offset に重ねて効かせる
+        /// (サンプリングで _ST を使わないシェーダー、たとえば Tiling And Offset ノードの無い Shader Graph には効かない)。
+        /// </summary>
+        private Material ResolveUserMaterial()
+        {
+            if (!TexTransformChanged && _scrollOffset == Vector2.zero)
+            {
+                return userMaterial;
+            }
+            if (_userMatPreview == null)
+            {
+                _userMatPreview = new Material(userMaterial) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            else
+            {
+                // 元のマテリアルの編集をプレビューに反映する
+                _userMatPreview.shader = userMaterial.shader;
+                _userMatPreview.CopyPropertiesFromMaterial(userMaterial);
+            }
+            _userMatPreview.name = userMaterial.name + " (Preview)";
+
+            Shader shader = userMaterial.shader;
+            int count = shader.GetPropertyCount();
+            for (int i = 0; i < count; i++)
+            {
+                if (shader.GetPropertyType(i) != ShaderPropertyType.Texture
+                    || (shader.GetPropertyFlags(i) & ShaderPropertyFlags.NoScaleOffset) != 0)
+                {
+                    continue;
+                }
+                int id = shader.GetPropertyNameId(i);
+                // (uv * s + o) * tiling + offset + scroll
+                Vector2 s = userMaterial.GetTextureScale(id);
+                Vector2 o = userMaterial.GetTextureOffset(id);
+                _userMatPreview.SetTextureScale(id, Vector2.Scale(s, texTiling));
+                _userMatPreview.SetTextureOffset(id, Vector2.Scale(o, texTiling) + texOffset + _scrollOffset);
+            }
+            return _userMatPreview;
         }
 
         /// <summary>
@@ -2277,6 +2591,11 @@ namespace VfxMeshTool.EditorUI
             }
 
             Setup3DCamera();
+            // Tiling / Offset を変えたまま Mat を外したときなどに複製が残らないようにする
+            if (userMaterial == null)
+            {
+                DestroyIfNotNull(ref _userMatPreview);
+            }
             Texture tex;
             Material mat = Resolve3DMaterial(out tex);
 
@@ -2362,7 +2681,7 @@ namespace VfxMeshTool.EditorUI
             tex = ResolveDisplayTexture();
             if (previewMode == PreviewMode.UserMaterial && userMaterial != null)
             {
-                return userMaterial;
+                return ResolveUserMaterial();
             }
             PreviewMode mode = previewMode == PreviewMode.UserMaterial ? PreviewMode.Textured : previewMode;
             ConfigurePreviewMaterial(_previewMat, mode, tex, cullMode, shading, 1f, false);
@@ -2443,7 +2762,7 @@ namespace VfxMeshTool.EditorUI
 
             if (previewMode == PreviewMode.UserMaterial && userMaterial != null)
             {
-                return userMaterial;
+                return ResolveUserMaterial();
             }
             PreviewMode mode = previewMode == PreviewMode.UserMaterial ? PreviewMode.Textured : previewMode;
             ConfigurePreviewMaterial(_uvFillMat, mode, tex, CullMode.Off, false, uvFillOpacity, true);
@@ -2503,6 +2822,30 @@ namespace VfxMeshTool.EditorUI
                 _so.Update();
             }
             Repaint();
+        }
+
+        /// <summary>自動化・テスト用: プレビューのテクスチャの Tiling / Offset を設定する。</summary>
+        public void SetTexTransform(Vector2 tiling, Vector2 offset)
+        {
+            texTiling = tiling;
+            texOffset = offset;
+            if (_so != null)
+            {
+                _so.Update();
+            }
+            Repaint();
+        }
+
+        /// <summary>自動化・テスト用: プレビューのテクスチャの Tiling / Offset。</summary>
+        public Vector4 TexTransform
+        {
+            get { return new Vector4(texTiling.x, texTiling.y, texOffset.x, texOffset.y); }
+        }
+
+        /// <summary>自動化・テスト用: ツールバーの Default と同じく表示の設定を初期値に戻す。</summary>
+        public void ResetPreviewSettings()
+        {
+            ResetPreviewToDefault();
         }
 
         /// <summary>自動化・テスト用: 3D プレビューをオフスクリーン描画して返す (GUI 不要)。</summary>
@@ -2589,6 +2932,7 @@ namespace VfxMeshTool.EditorUI
             m.SetFloat("_Cull", (float)cull);
             m.SetColor("_Color", new Color(1f, 1f, 1f, opacity));
             m.SetVector("_ScrollOffset", new Vector4(_scrollOffset.x, _scrollOffset.y, 0f, 0f));
+            m.SetVector("_TexST", new Vector4(texTiling.x, texTiling.y, texOffset.x, texOffset.y));
 
             if (additive)
             {
@@ -2908,6 +3252,7 @@ namespace VfxMeshTool.EditorUI
             DestroyIfNotNull(ref _previewMat);
             DestroyIfNotNull(ref _uvFillMat);
             DestroyIfNotNull(ref _uvBgMat);
+            DestroyIfNotNull(ref _userMatPreview);
             DestroyIfNotNull(ref _wireMat);
             DestroyIfNotNull(ref _gridMat);
             _gridStep = -1f;

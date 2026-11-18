@@ -31,7 +31,7 @@ Requires Unity 2021.3 or later, Built-in or URP.
 | --- | --- | --- |
 | 1 | Preset bar | Saving and loading a full set of settings (`VfxMeshPreset` asset): Save As / Apply / Reload |
 | 2 | Mesh settings panel | Settings for the shape, transform, vertex distribution, UV, vertex colour, export and DCC link. Changes here change the mesh and the exported result (undoable) |
-| 3 | 3D view toolbar | Display settings of the 3D preview: preview mode, preview texture / material, wireframe, shading, culling, grid, background colour, Scene view display, camera (Frame / Reset / Home), reset of display settings (Default) |
+| 3 | 3D view toolbar | Display settings of the 3D preview: preview mode, preview texture / material, sample textures, texture Tiling / Offset, wireframe, shading, culling, grid, background colour, Scene view display, camera (Frame / Reset / Home), reset of display settings (Default) |
 | 4 | 3D preview | Live 3D view of the generated mesh, with mouse camera controls |
 | 5 | Mesh info | Vertex count, triangle count and size (width × height × depth) |
 | 6 | UV view toolbar | Display settings of the UV preview: range, fill, opacity, view reset, UV scroll playback |
@@ -43,7 +43,7 @@ Requires Unity 2021.3 or later, Built-in or URP.
 
 ### Sections of the mesh settings panel (2)
 
-The colour band at the left of each section header shows what the section changes.
+Each section is a card. The colour of its header band (and of the line down its left edge) shows what the section changes.
 
 | Colour | Section | Contents |
 | --- | --- | --- |
@@ -65,12 +65,14 @@ The ⋮ menu at the right of each section header has **Reset to Default**, which
 | --- | --- |
 | Preview mode | Textured (texture × vertex colour) / TexturedAdditive / VertexRGB / VertexAlpha / UvChecker (checker plus UV as colour) / Normals / UserMaterial (your material in Mat) |
 | Tex / Mat | Preview texture and material. With Tex empty, `_MainTex` / `_BaseMap` of Mat is used |
+| Samples | Puts one of the bundled [sample textures](#sample-textures) into Tex (None empties it) |
+| Tiling / Offset | Tiling and offset of the preview texture, as in a material (drag the X / Y letters left / right to change them). Adds to Scroll. Display only: the mesh UVs and the Mat asset do not change. Not the same as Tiling / Offset in the UV section, which rewrites the mesh UVs. In UserMaterial mode it is applied to a copy of Mat, on top of the material's own Tiling / Offset of every texture with `_ST`; shaders that do not sample with `_ST` (e.g. a Shader Graph without a Tiling And Offset node) are not affected |
 | Wire / Shade / Grid | Wireframe, view-direction shading, floor grid |
 | Cull | Faces not drawn: Off = both, Back = back faces hidden, Front = front faces hidden (to see the inside) |
 | BG | Background colour |
 | Scene / Handles | The generated mesh in the Scene view / Path control-point handles (Path with Points only) |
 | Frame / Reset / Home | Frame the whole mesh (F) / go to the home view (R) / set or reset the home view |
-| Default | Reset of the display settings (background, mode, UV view, scroll, 3D / UV split, camera). Tex / Mat and the mesh settings are kept |
+| Default | Reset of the display settings (background, mode, UV view, scroll, Tiling / Offset, 3D / UV split, camera). Tex / Mat and the mesh settings are kept |
 
 ### UV view toolbar (6)
 
@@ -79,7 +81,7 @@ The ⋮ menu at the right of each section header has **Reset to Default**, which
 | Range | Unit = 0..1, Extended = -1..2 |
 | Fill / Opacity | Mesh fill in the same mode as the 3D view, and its opacity (to see where vertex alpha lands on the texture) |
 | Reset | Reset of the UV view position |
-| Scroll | Preview of a scrolling texture: Play, U / V speed per second (drag the letter left / right to change it), 0 to rewind. Without a texture in Tex / Mat, a built-in test pattern (checker) is scrolled instead. Display only; the mesh UVs do not change (no effect in UserMaterial mode) |
+| Scroll | Preview of a scrolling texture: Play, U / V speed per second (drag the letter left / right to change it), 0 to rewind. Without a texture in Tex / Mat, a built-in test pattern (checker) is shown instead while scrolling or with Tiling / Offset changed. Display only; the mesh UVs do not change. In UserMaterial mode it moves the textures that use `_ST`, like Tiling / Offset |
 
 ### Camera controls (4, 7)
 
@@ -93,6 +95,20 @@ The ⋮ menu at the right of each section header has **Reset to Default**, which
 
 - The camera is fixed in world space and does not follow the mesh size, so a bigger shape looks bigger. The grid spacing depends only on the camera distance.
 - The UV preview pans with drag, zooms with the wheel and resets with Reset in the UV view toolbar. The texture wrap mode (Repeat / Clamp) shows in the background.
+
+### Sample textures
+
+`Textures/` holds 12 greyscale textures made for this package (generated, no third-party content; MIT like the code). Pick one from **Samples** in the 3D view toolbar, or use them in your own materials.
+
+| Group | Textures | Size / wrap |
+| --- | --- | --- |
+| Noise | Cell, Cloud, Crack, Fine, Wispy | 512², tiles (Repeat) |
+| Streak | Sharp, Soft | 512², tiles (Repeat) |
+| Mask | Circle, EdgeFade, FadeV, Ring, Spark (with alpha) | 256², Clamp |
+
+![The 12 sample textures](Docs~/sample_textures.png)
+
+`Tools~/generate_sample_textures.py` regenerates them from fixed seeds (needs numpy and Pillow). PNGs added to `Textures/` show up in the Samples menu.
 
 ## Shapes
 
@@ -279,6 +295,10 @@ Unity.exe -batchmode -projectPath <project> -executeMethod VfxMeshToolBatchTest.
 | VfxImportTest | Mesh Asset slot (settings restore, Imported shape, mesh inside an FBX, Auto Write, writing back into the source asset) |
 | VfxDccLinkTest | Unity → Blender → Unity round trip (needs Blender) |
 | VfxTopCapTest | Revolve Top Cap Curvature |
+| VfxCullScrollTest | Cull and UV scroll preview |
+| VfxTexTransformTest | Preview Tiling / Offset (with Scroll, UV view, Mat mode without changing the asset, Default) |
+| VfxSampleTextureTest | Sample textures: found from the package folder, import settings |
+| VfxColorFormatTest | Vertex colours saved as Color32, conversion of older assets, Particle System rendering |
 
 `VfxMeshToolBatchTestUrp.cs` is for projects with URP.
 
@@ -299,10 +319,13 @@ VfxMeshTool/
     VfxMeshFileExporter.cs … OBJ / FBX export
     VfxDccLink.cs          … DCC link (send, launch, watch the return folder, replace)
     DccAdapters/vfxmesh_blender_bridge.py … Blender side (import, Send to Unity, send on save)
+    VfxMeshColorFormat.cs  … conversion of vertex colours to Color32
     VfxMeshPresetEditor.cs
     Shaders/VfxMeshPreview.shader, VfxMeshWire.shader
+  Textures/ … sample textures
   Docs~/   … README images
   Tests~/  … batch tests
+  Tools~/  … sample texture generator
 ```
 
 ## Known limitations

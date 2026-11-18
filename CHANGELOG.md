@@ -14,6 +14,13 @@ All notable changes to this package are documented here. The format follows [Kee
 - UI screenshots in the README, with a numbered layout image matched to a table of window areas.
 - Japanese documentation moved to README.ja.md; README.md is now in English.
 - UV scroll preview: a built-in test pattern is scrolled when no texture is set, and the U / V speed fields can be changed by dragging their labels.
+- Sample textures: 12 generated greyscale textures in `Textures/` (noise, streak, mask), picked from Samples in the 3D view toolbar. `Tools~/generate_sample_textures.py` regenerates them.
+- Tiling / Offset of the preview texture in the 3D view toolbar. Adds to Scroll and is reset by Default; the mesh UVs and the Mat asset do not change (UserMaterial mode uses a copy of Mat).
+
+### Changed
+- Each section of the settings panel is a card: a header band in the section colour with a larger bold title, a recessed background for its contents and a line in the section colour down its left edge. Sub-headings have stronger lines, and separators split the groups of the 3D / UV view toolbars. Works in both the dark and light editor skins.
+- README screenshots (window layout, settings panel) retaken with the new UI.
+- Scroll now also moves the textures of Mat in UserMaterial mode (through a copy; the asset is not changed).
 
 ### Fixed
 - Edit in Blender did not import the mesh when Blender opened with a window (the import ran before Blender's UI was ready).

@@ -375,8 +375,8 @@ namespace VfxMeshTool.EditorUI
 
         /// <summary>
         /// セクション内の小見出し。miniBoldLabel は字が小さく、どこからどこまでが
-        /// 一つのまとまりなのか読み取りにくいので、少し大きい太字 + 右へ伸びる区切り線 +
-        /// 上の余白で「ここから次のまとまりが始まる」ことを示す。
+        /// 一つのまとまりなのか読み取りにくいので、少し大きい太字 + 上の余白で「ここから次のまとまりが始まる」ことを示す。
+        /// 線は引かない (横線はセクション見出しにだけ引き、線が多すぎて見づらくならないようにする)。
         /// </summary>
         private static void SubHeader(string label, string tooltip = null)
         {
@@ -397,21 +397,13 @@ namespace VfxMeshTool.EditorUI
             Rect row = GUILayoutUtility.GetRect(content, _subHeaderStyle);
             row.xMin += EditorGUI.indentLevel * 15f;
             GUI.Label(row, content, _subHeaderStyle);
-
-            float textW = _subHeaderStyle.CalcSize(content).x;
-            Rect line = new Rect(row.x + textW + 6f, row.y + row.height * 0.5f, row.width - textW - 6f, 1f);
-            if (line.width > 8f)
-            {
-                EditorGUI.DrawRect(line, RuleColor(SubRuleStrength));
-            }
             GUILayout.Space(2f);
         }
 
         // ---- rules (罫線) ----
-        // セクションの境目はカード (下の section cards) で見せる。線はツールバーのまとまりの境目 (縦線) とサブ見出しに使う
+        // 横線はセクション見出しの帯の中だけ (BeginSection)。ほかにはツールバーのまとまりの境目に縦線を引く
 
         private const float ToolbarRuleStrength = 0.32f;
-        private const float SubRuleStrength = 0.24f;
 
         /// <summary>罫線の色。ダークテーマでは白、ライトテーマでは黒を半透明で重ねるので、どちらのテーマでも見える。</summary>
         private static Color RuleColor(float strength)
@@ -465,8 +457,8 @@ namespace VfxMeshTool.EditorUI
         }
 
         // ---- section cards ----
-        // セクションを 1 枚のカードとして見せる: 見出しは種類の色を重ねた帯 + 大きめの太字、中身はウィンドウより一段沈めた
-        // (ライトテーマでは一段明るい) 背景、左端に種類の色のライン。カードの間は少し空ける。
+        // セクションを 1 枚のカードとして見せる: 見出しは種類の色を重ねた帯 + 大きめの太字、中身はウィンドウより一段明るい
+        // 背景 (入力欄が沈まないように)、左端に種類の色のライン。カードの間は少し空ける。
 
         private static GUIStyle _cardStyle;
         private static Texture2D _cardTex;
@@ -474,12 +466,13 @@ namespace VfxMeshTool.EditorUI
 
         private static Color CardColor
         {
-            get { return EditorGUIUtility.isProSkin ? new Color(0.165f, 0.165f, 0.175f, 1f) : new Color(0.85f, 0.85f, 0.86f, 1f); }
+            // ダークテーマでは入力欄 (0.165 前後) より明るくして、欄が背景に沈まないようにする (ウィンドウ 0.22 より一段明るい)
+            get { return EditorGUIUtility.isProSkin ? new Color(0.255f, 0.255f, 0.265f, 1f) : new Color(0.85f, 0.85f, 0.86f, 1f); }
         }
 
         private static Color HeaderBaseColor
         {
-            get { return EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.265f, 1f) : new Color(0.9f, 0.9f, 0.91f, 1f); }
+            get { return EditorGUIUtility.isProSkin ? new Color(0.3f, 0.3f, 0.315f, 1f) : new Color(0.9f, 0.9f, 0.91f, 1f); }
         }
 
         /// <summary>カードの中身の背景。テーマが変わったら作り直す。</summary>
@@ -552,7 +545,19 @@ namespace VfxMeshTool.EditorUI
                 }
             }
             var foldRect = new Rect(r.x + 8f, r.y + (r.height - 20f) * 0.5f, r.width - 8f - (menu != null ? 26f : 4f), 20f);
-            fold = EditorGUI.Foldout(foldRect, fold, new GUIContent(title, tooltip), true, SectionHeaderStyle);
+            var titleContent = new GUIContent(title, tooltip);
+            if (Event.current.type == EventType.Repaint)
+            {
+                // 見出しの文字の右から ⋮ の手前まで横線を引き、セクションの始まりをはっきりさせる
+                float lineStart = foldRect.x + SectionHeaderStyle.CalcSize(titleContent).x + 8f;
+                float lineEnd = (menu != null ? menuRect.x : r.xMax) - 8f;
+                if (lineEnd - lineStart > 8f)
+                {
+                    Color line = EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.5f) : new Color(0f, 0f, 0f, 0.35f);
+                    EditorGUI.DrawRect(new Rect(lineStart, Mathf.Round(r.center.y), lineEnd - lineStart, 1f), line);
+                }
+            }
+            fold = EditorGUI.Foldout(foldRect, fold, titleContent, true, SectionHeaderStyle);
             if (fold)
             {
                 EditorGUILayout.BeginVertical(CardStyle);

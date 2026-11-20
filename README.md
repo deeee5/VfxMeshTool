@@ -43,7 +43,7 @@ Requires Unity 2021.3 or later, Built-in or URP.
 
 ### Sections of the mesh settings panel (2)
 
-Each section is a card. The colour of its header band (and of the line down its left edge) shows what the section changes.
+Each section is a card. The colour of the line under its header shows what the section changes.
 
 | Colour | Section | Contents |
 | --- | --- | --- |

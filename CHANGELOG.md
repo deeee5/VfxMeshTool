@@ -18,7 +18,7 @@ All notable changes to this package are documented here. The format follows [Kee
 - Tiling / Offset of the preview texture in the 3D view toolbar. Adds to Scroll and is reset by Default; the mesh UVs and the Mat asset do not change (UserMaterial mode uses a copy of Mat).
 
 ### Changed
-- Each section of the settings panel is a card: a header band in the section colour with a larger bold title and a line across it, a background for its contents (one step lighter than the window in the dark skin, so the input fields stay visible) and a line in the section colour down its left edge. Sub-headings no longer draw lines, and separators split the groups of the 3D / UV view toolbars. Works in both the dark and light editor skins.
+- Each section of the settings panel is a card: a header with a larger bold title and a line in the section colour along its bottom edge (the only place the section colour appears; darker in the light skin), and a background for its contents (one step lighter than the window in the dark skin, so the input fields stay visible). Sub-headings no longer draw lines, and separators split the groups of the 3D / UV view toolbars. Works in both the dark and light editor skins.
 - README screenshots (window layout, settings panel) retaken with the new UI.
 - Scroll now also moves the textures of Mat in UserMaterial mode (through a copy; the asset is not changed).
 

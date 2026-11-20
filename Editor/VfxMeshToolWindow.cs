@@ -432,6 +432,7 @@ namespace VfxMeshTool.EditorUI
         private static readonly Color PreviewColor = new Color(0.6f, 0.6f, 0.6f);
 
         private const float SectionHeaderHeight = 24f;
+        private const float SectionUnderline = 2f;
         private static GUIStyle _sectionHeaderStyle;
 
         /// <summary>
@@ -457,8 +458,8 @@ namespace VfxMeshTool.EditorUI
         }
 
         // ---- section cards ----
-        // セクションを 1 枚のカードとして見せる: 見出しは種類の色を重ねた帯 + 大きめの太字、中身はウィンドウより一段明るい
-        // 背景 (入力欄が沈まないように)、左端に種類の色のライン。カードの間は少し空ける。
+        // セクションを 1 枚のカードとして見せる: 見出しは大きめの太字と、下端の種類の色の線 (色はこの線だけ)、
+        // 中身はウィンドウより一段明るい背景 (入力欄が沈まないように)。カードの間は少し空ける。
 
         private static GUIStyle _cardStyle;
         private static Texture2D _cardTex;
@@ -500,7 +501,6 @@ namespace VfxMeshTool.EditorUI
             }
         }
 
-        private Color _sectionTag;
 
         /// <summary>
         /// セクション見出し (カードの上端)。EndSection で閉じる。
@@ -522,14 +522,17 @@ namespace VfxMeshTool.EditorUI
             Rect r = GUILayoutUtility.GetRect(1f, SectionHeaderHeight, GUILayout.ExpandWidth(true));
             if (Event.current.type == EventType.Repaint)
             {
-                Color band = tag;
-                band.a = EditorGUIUtility.isProSkin ? 0.42f : 0.5f;
+                // 見出しはウィンドウより一段明るい下地 + 下端にセクションの色の線。色はこの線だけに付ける
                 EditorGUI.DrawRect(r, HeaderBaseColor);
-                EditorGUI.DrawRect(r, band);
-                EditorGUI.DrawRect(new Rect(r.x, r.y, 4f, r.height), tag);
+                Color line = tag;
+                if (!EditorGUIUtility.isProSkin)
+                {
+                    // 明るい下地の上では緑・橙が薄く見えるので暗くする
+                    line = new Color(tag.r * 0.72f, tag.g * 0.72f, tag.b * 0.72f, 1f);
+                }
+                EditorGUI.DrawRect(new Rect(r.x, r.yMax - SectionUnderline, r.width, SectionUnderline), line);
             }
-            _sectionTag = tag;
-            // 見出しは自前で描く (Unity のフォールドアウト見出しは不透明な背景を描くので、下に敷いた帯が隠れる)
+            // 見出しは自前で描く (Unity のフォールドアウト見出しは不透明な背景を描くので、下地や線と合わない)
             var menuRect = new Rect(r.xMax - 22f, r.y + (r.height - 18f) * 0.5f, 18f, 18f);
             if (menu != null)
             {
@@ -545,19 +548,7 @@ namespace VfxMeshTool.EditorUI
                 }
             }
             var foldRect = new Rect(r.x + 8f, r.y + (r.height - 20f) * 0.5f, r.width - 8f - (menu != null ? 26f : 4f), 20f);
-            var titleContent = new GUIContent(title, tooltip);
-            if (Event.current.type == EventType.Repaint)
-            {
-                // 見出しの文字の右から ⋮ の手前まで横線を引き、セクションの始まりをはっきりさせる
-                float lineStart = foldRect.x + SectionHeaderStyle.CalcSize(titleContent).x + 8f;
-                float lineEnd = (menu != null ? menuRect.x : r.xMax) - 8f;
-                if (lineEnd - lineStart > 8f)
-                {
-                    Color line = EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.5f) : new Color(0f, 0f, 0f, 0.35f);
-                    EditorGUI.DrawRect(new Rect(lineStart, Mathf.Round(r.center.y), lineEnd - lineStart, 1f), line);
-                }
-            }
-            fold = EditorGUI.Foldout(foldRect, fold, titleContent, true, SectionHeaderStyle);
+            fold = EditorGUI.Foldout(foldRect, fold, new GUIContent(title, tooltip), true, SectionHeaderStyle);
             if (fold)
             {
                 EditorGUILayout.BeginVertical(CardStyle);
@@ -565,19 +556,12 @@ namespace VfxMeshTool.EditorUI
             return fold;
         }
 
-        /// <summary>BeginSection と対になる。開いているときはカードを閉じ、左端に種類の色のラインを引く。</summary>
+        /// <summary>BeginSection と対になる。開いているときはカードを閉じる。</summary>
         private void EndSection(bool fold)
         {
             if (fold)
             {
                 EditorGUILayout.EndVertical();
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Rect card = GUILayoutUtility.GetLastRect();
-                    Color c = _sectionTag;
-                    c.a = 0.9f;
-                    EditorGUI.DrawRect(new Rect(card.x, card.y, 3f, card.height), c);
-                }
             }
         }
 
